@@ -47,13 +47,13 @@ if (Test-Path "pyproject.toml") {
     
     # Nuitka command to build standalone exe
     $NuitkaCmd = @(
-        "uv run nuitka"
+        "uvx nuitka"
         "--standalone"
         "--onefile"
         "--enable-plugin=pyqt5"
         "--windows-console-mode=disable"
         "--output-dir=dist"
-        "main.py"
+        "latch_vault/main.py"
     ) -join " "
     
     Invoke-Expression $NuitkaCmd

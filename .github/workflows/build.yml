@@ -76,7 +76,7 @@ jobs:
           dotnet-version: '8.0.x'
       
       - name: Install Nuitka
-        run: uv pip install nuitka ordered-set zstandard
+        run: uv tool install nuitka ordered-set zstandard
       
       - name: Build application
         run: pwsh -File scripts/build.ps1
