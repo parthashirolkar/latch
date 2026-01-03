@@ -47,7 +47,7 @@ if (Test-Path "pyproject.toml") {
     
     # Nuitka command to build standalone exe
     $NuitkaCmd = @(
-        "uvx nuitka"
+        "uvx --from nuitka nuitka"
         "--standalone"
         "--onefile"
         "--enable-plugin=pyqt5"

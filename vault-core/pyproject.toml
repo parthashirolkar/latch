@@ -12,3 +12,7 @@ dependencies = [
 
 [project.scripts]
 latch-vault = "latch_vault.main:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
