@@ -83,7 +83,13 @@ if (Test-Path "package.json") {
     bun install
     
     Write-Host "  Building with Tauri..." -ForegroundColor Gray
-    
+
+    if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+        Write-Host "  ✗ Rust/Cargo not found. Please install Rust from: https://rustup.rs" -ForegroundColor Red
+        Write-Host "  Run: winget install Rustlang.Rustup" -ForegroundColor Gray
+        exit 1
+    }
+
     if (Test-Path "src-tauri") {
         bun run tauri build
         
