@@ -1,0 +1,14 @@
+[project]
+name = "latch-vault-core"
+version = "0.1.0"
+description = "Vault core for Latch Password Manager"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "cryptography>=46.0.3",
+    "pydantic>=2.12.5",
+    "sqlalchemy>=2.0.45",
+]
+
+[project.scripts]
+latch-vault = "latch_vault.main:cli"

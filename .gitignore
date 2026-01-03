@@ -1,0 +1,94 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+target/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.spec
+build.py
+*.build/
+
+# Python Nuitka
+*.dist/
+*.onefile-build/
+*.binaries/
+*.standalone/
+
+# Bun / Node
+node_modules/
+.bun/
+package-lock.json
+yarn.lock
+.pnpm-store/
+*.log
+*.tsbuildinfo
+
+# Rust/Tauri
+target/
+Cargo.lock
+frontend/src-tauri/target/
+
+# C# / .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.userosscache
+*.sln.docstates
+.vs/
+
+# Local config
+.env
+.env.local
+*.local
+
+# Logs
+logs/
+*.log
+
+# Test files
+test-results/
+coverage/
+
+# Vault data (never commit actual vault files!)
+*.vault
+*.db
+*.sqlite
+*.sqlite3
+secrets/
+vault-data/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
