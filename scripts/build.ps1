@@ -50,7 +50,6 @@ if (Test-Path "pyproject.toml") {
         "uvx --from nuitka nuitka"
         "--standalone"
         "--onefile"
-        "--windows-console-mode=error"
         "--output-dir=dist"
         "latch_vault/main.py"
     ) -join " "
