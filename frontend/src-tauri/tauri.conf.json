@@ -34,14 +34,7 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      {
-        "name": "vault-core",
-        "path": "../vault-core.exe"
-      },
-      {
-        "name": "auth-helper",
-        "path": "../auth-helper.exe"
-      }
+      "vault-core"
     ]
   }
 }
