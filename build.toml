@@ -19,9 +19,6 @@ python_bundler = "nuitka"
 python_enable_ccache = true
 python_enable_msvc = false
 
-csharp_self_contained = true
-csharp_runtime = "net8.0"
-
 tauri_before_bundle_command = "bun run build"
 
 # Development settings
@@ -34,5 +31,4 @@ log_level = "info"
 enabled = true
 python_venv = true
 rust_cargo = true
-dotnet_nuget = true
 bun_modules = true

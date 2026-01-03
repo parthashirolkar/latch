@@ -7,6 +7,10 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       search_entries,
       request_secret,
+      init_vault,
+      unlock_vault,
+      lock_vault,
+      vault_status,
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {
@@ -47,6 +51,80 @@ fn request_secret(entry_id: String, field: String) -> Result<String, String> {
     .arg("request-secret")
     .arg(&entry_id)
     .arg(&field)
+    .output();
+
+  match output {
+    Ok(output) => {
+      if output.status.success() {
+        Ok(str::from_utf8(&output.stdout).unwrap_or("").to_string())
+      } else {
+        Err(format!("vault-core failed: {}", str::from_utf8(&output.stderr).unwrap_or("unknown error")))
+      }
+    }
+    Err(e) => Err(format!("Failed to execute vault-core: {}", e)),
+  }
+}
+
+#[tauri::command]
+fn init_vault(password: String) -> Result<String, String> {
+  let output = Command::new("vault-core")
+    .arg("init")
+    .arg(&password)
+    .output();
+
+  match output {
+    Ok(output) => {
+      if output.status.success() {
+        Ok(str::from_utf8(&output.stdout).unwrap_or("").to_string())
+      } else {
+        Err(format!("vault-core failed: {}", str::from_utf8(&output.stderr).unwrap_or("unknown error")))
+      }
+    }
+    Err(e) => Err(format!("Failed to execute vault-core: {}", e)),
+  }
+}
+
+#[tauri::command]
+fn unlock_vault(password: String) -> Result<String, String> {
+  let output = Command::new("vault-core")
+    .arg("unlock")
+    .arg(&password)
+    .output();
+
+  match output {
+    Ok(output) => {
+      if output.status.success() {
+        Ok(str::from_utf8(&output.stdout).unwrap_or("").to_string())
+      } else {
+        Err(format!("vault-core failed: {}", str::from_utf8(&output.stderr).unwrap_or("unknown error")))
+      }
+    }
+    Err(e) => Err(format!("Failed to execute vault-core: {}", e)),
+  }
+}
+
+#[tauri::command]
+fn lock_vault() -> Result<String, String> {
+  let output = Command::new("vault-core")
+    .arg("lock")
+    .output();
+
+  match output {
+    Ok(output) => {
+      if output.status.success() {
+        Ok(str::from_utf8(&output.stdout).unwrap_or("").to_string())
+      } else {
+        Err(format!("vault-core failed: {}", str::from_utf8(&output.stderr).unwrap_or("unknown error")))
+      }
+    }
+    Err(e) => Err(format!("Failed to execute vault-core: {}", e)),
+  }
+}
+
+#[tauri::command]
+fn vault_status() -> Result<String, String> {
+  let output = Command::new("vault-core")
+    .arg("status")
     .output();
 
   match output {

@@ -33,10 +33,6 @@ else
     echo "  ⚠️  No pyproject.toml found, skipping Python build"
 fi
 
-# Build C# auth-helper (Windows only)
-echo ""
-echo "🔷 C# auth-helper build skipped (Windows only)"
-
 # Build Tauri frontend
 echo ""
 echo "⚛️  Building Tauri frontend..."
