@@ -58,6 +58,9 @@ if (Test-Path "pyproject.toml") {
     
     if (Test-Path "$PythonDistDir/main.exe") {
         Copy-Item "$PythonDistDir/main.exe" "$BuildDir/vault-core.exe"
+        $TauriBinariesDir = Join-Path $ProjectRoot "frontend/src-tauri/binaries"
+        New-Item -ItemType Directory -Force -Path $TauriBinariesDir | Out-Null
+        Copy-Item "$PythonDistDir/main.exe" "$TauriBinariesDir/vault-core-x86_64-pc-windows-msvc.exe"
         Write-Host "  ✓ vault-core.exe built successfully" -ForegroundColor Green
     } else {
         Write-Host "  ✗ Nuitka build failed" -ForegroundColor Red
@@ -69,31 +72,7 @@ if (Test-Path "pyproject.toml") {
 
 Pop-Location
 
-# Build C# auth-helper
-Write-Host ""
-Write-Host "🔷 Building C# auth-helper..." -ForegroundColor Cyan
-$CSharpDir = Join-Path $ProjectRoot "auth-helper"
-$CSharpBuildDir = Join-Path $CSharpDir "bin/Release/net8.0"
 
-Push-Location $CSharpDir
-
-if (Test-Path "*.csproj") {
-    Write-Host "  Building self-contained executable..." -ForegroundColor Gray
-    
-    dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
-    
-    if (Test-Path "$CSharpBuildDir/*.exe") {
-        Copy-Item "$CSharpBuildDir/*.exe" "$BuildDir/auth-helper.exe"
-        Write-Host "  ✓ auth-helper.exe built successfully" -ForegroundColor Green
-    } else {
-        Write-Host "  ✗ C# build failed" -ForegroundColor Red
-        exit 1
-    }
-} else {
-    Write-Host "  ⚠️  No .csproj found, skipping C# build" -ForegroundColor Yellow
-}
-
-Pop-Location
 
 # Build Tauri frontend
 Write-Host ""
@@ -107,7 +86,13 @@ if (Test-Path "package.json") {
     bun install
     
     Write-Host "  Building with Tauri..." -ForegroundColor Gray
-    
+
+    if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+        Write-Host "  ✗ Rust/Cargo not found. Please install Rust from: https://rustup.rs" -ForegroundColor Red
+        Write-Host "  Run: winget install Rustlang.Rustup" -ForegroundColor Gray
+        exit 1
+    }
+
     if (Test-Path "src-tauri") {
         bun run tauri build
         
@@ -139,7 +124,6 @@ New-Item -ItemType Directory -Force -Path $PortableDir | Out-Null
 
 # Copy all executables to portable directory
 Copy-Item "$BuildDir/vault-core.exe" $PortableDir -ErrorAction SilentlyContinue
-Copy-Item "$BuildDir/auth-helper.exe" $PortableDir -ErrorAction SilentlyContinue
 Copy-Item "$BuildDir/*.exe" $PortableDir -Exclude "*.nsi" -ErrorAction SilentlyContinue
 
 Compress-Archive -Path "$PortableDir/*" -DestinationPath $ZipPath -Force

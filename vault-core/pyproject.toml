@@ -5,9 +5,16 @@ description = "Vault core for Latch Password Manager"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "argon2-cffi>=25.1.0",
     "cryptography>=46.0.3",
     "pydantic>=2.12.5",
     "sqlalchemy>=2.0.45",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
 ]
 
 [project.scripts]
@@ -16,6 +23,19 @@ latch-vault = "latch_vault.main:cli"
 [tool.hatch.build.targets.wheel]
 packages = ["latch_vault"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=latch_vault --cov-report=term-missing --cov-report=html"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+]
