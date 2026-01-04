@@ -60,7 +60,7 @@ if (Test-Path "pyproject.toml") {
         Copy-Item "$PythonDistDir/main.exe" "$BuildDir/vault-core.exe"
         $TauriBinariesDir = Join-Path $ProjectRoot "frontend/src-tauri/binaries"
         New-Item -ItemType Directory -Force -Path $TauriBinariesDir | Out-Null
-        Copy-Item "$PythonDistDir/main.exe" "$TauriBinariesDir/vault-core.exe"
+        Copy-Item "$PythonDistDir/main.exe" "$TauriBinariesDir/vault-core-x86_64-pc-windows-msvc.exe"
         Write-Host "  ✓ vault-core.exe built successfully" -ForegroundColor Green
     } else {
         Write-Host "  ✗ Nuitka build failed" -ForegroundColor Red
