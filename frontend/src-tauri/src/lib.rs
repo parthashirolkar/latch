@@ -20,6 +20,7 @@ pub fn run() {
             .build(),
         )?;
       }
+      app.handle().plugin(tauri_plugin_shell::ShellPlugin::new())?;
       Ok(())
     })
     .run(tauri::generate_context!())

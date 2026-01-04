@@ -6,16 +6,6 @@
     "main"
   ],
   "permissions": [
-    "core:default",
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "args": true,
-          "name": "binaries/vault-core",
-          "sidecar": true
-        }
-      ]
-    }
+    "core:default"
   ]
 }
