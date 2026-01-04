@@ -2,10 +2,10 @@ import sys
 import json
 import os
 import time
-from typing import Optional, Dict, Any
+from typing import Optional
 from pydantic import BaseModel
-from .crypto import derive_key, encrypt_data, decrypt_data
-from .storage import VaultStorage
+from latch_vault.crypto import derive_key, encrypt_data, decrypt_data
+from latch_vault.storage import VaultStorage
 
 
 class EntryPreview(BaseModel):
