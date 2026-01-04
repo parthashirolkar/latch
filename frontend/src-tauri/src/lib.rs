@@ -1,6 +1,14 @@
 use std::process::Command;
 use std::str;
 
+fn get_vault_core_exe() -> &'static str {
+  if cfg!(windows) {
+    "vault-core.exe"
+  } else {
+    "vault-core"
+  }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -28,7 +36,7 @@ pub fn run() {
 
 #[tauri::command]
 fn search_entries(query: String) -> Result<String, String> {
-  let output = Command::new("binaries/vault-core")
+  let output = Command::new(get_vault_core_exe())
     .arg("search")
     .arg(&query)
     .output();
@@ -47,7 +55,7 @@ fn search_entries(query: String) -> Result<String, String> {
 
 #[tauri::command]
 fn request_secret(entry_id: String, field: String) -> Result<String, String> {
-  let output = Command::new("binaries/vault-core")
+  let output = Command::new(get_vault_core_exe())
     .arg("request-secret")
     .arg(&entry_id)
     .arg(&field)
@@ -67,7 +75,7 @@ fn request_secret(entry_id: String, field: String) -> Result<String, String> {
 
 #[tauri::command]
 fn init_vault(password: String) -> Result<String, String> {
-  let output = Command::new("binaries/vault-core")
+  let output = Command::new(get_vault_core_exe())
     .arg("init")
     .arg(&password)
     .output();
@@ -86,7 +94,7 @@ fn init_vault(password: String) -> Result<String, String> {
 
 #[tauri::command]
 fn unlock_vault(password: String) -> Result<String, String> {
-  let output = Command::new("binaries/vault-core")
+  let output = Command::new(get_vault_core_exe())
     .arg("unlock")
     .arg(&password)
     .output();
@@ -105,7 +113,7 @@ fn unlock_vault(password: String) -> Result<String, String> {
 
 #[tauri::command]
 fn lock_vault() -> Result<String, String> {
-  let output = Command::new("binaries/vault-core")
+  let output = Command::new(get_vault_core_exe())
     .arg("lock")
     .output();
 
@@ -123,7 +131,7 @@ fn lock_vault() -> Result<String, String> {
 
 #[tauri::command]
 fn vault_status() -> Result<String, String> {
-  let output = Command::new("binaries/vault-core")
+  let output = Command::new(get_vault_core_exe())
     .arg("status")
     .output();
 

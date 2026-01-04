@@ -16,6 +16,8 @@ cd frontend && tsc --noEmit       # Type check
 cd vault-core && uv sync                        # Install deps
 cd vault-core && uv run python -m latch_vault.main  # Run CLI
 cd vault-core && uv add <package>                 # Add deps
+cd vault-core && uv run pytest                  # Run tests with coverage
+cd vault-core && uv run pytest --cov=latch_vault --cov-report=html  # HTML coverage report
 ```
 
 ### Full Project
