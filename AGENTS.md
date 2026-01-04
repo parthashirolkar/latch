@@ -18,13 +18,6 @@ cd vault-core && uv run python -m latch_vault.main  # Run CLI
 cd vault-core && uv add <package>                 # Add deps
 ```
 
-### Auth Helper (C# - Windows only)
-```bash
-cd auth-helper && dotnet run                            # Dev
-cd auth-helper && dotnet build -c Release                 # Build
-cd auth-helper && dotnet publish -c Release -r win-x64 --self-contained  # Publish
-```
-
 ### Full Project
 ```bash
 ./scripts/dev.sh         # Dev setup
@@ -37,9 +30,10 @@ cd auth-helper && dotnet publish -c Release -r win-x64 --self-contained  # Publi
 
 ### Architecture Principles
 
-1. **Strict Layer Separation**: Frontend=UI, Vault Core=crypto/storage, Auth Helper=Windows Hello only
+1. **Strict Layer Separation**: Frontend=UI, Vault Core=crypto/storage/auth
 2. **Intent-Based Communication**: Frontend uses `invoke('command', { params })`, never passes secrets directly
 3. **JSON IPC**: All cross-process uses JSON (Python: `json.dumps()`, TS: `JSON.parse()`)
+4. **Master Password Security**: Password never stored, only derived keys via Argon2id KDF
 
 ### TypeScript/React
 
@@ -101,14 +95,6 @@ print("Error", file=sys.stderr)
 **Error**: `match { Ok(_) => { if success { Ok(_) } else { Err(_) } } Err(_) => Err(_) }`
 **Naming**: snake_case vars/funcs, PascalCase types, `cfg!` for platform code
 
-### C# (Auth Helper)
-
-**Imports**: `using System; using Windows.Security.Credentials.UI;`
-**Structure**: Namespace at file level, single class, exit codes 0=success/1=failure
-**Error**: `try { } catch (Exception ex) { return 1; }`
-**Naming**: PascalCase classes/methods, camelCase params/locals, switch expressions
-**Output**: stdout=minimal, stderr=errors
-
 ## Conventions Summary
 
 | Language | Vars/Funcs | Classes/Types | Files | Comments |
@@ -116,7 +102,6 @@ print("Error", file=sys.stderr)
 | TypeScript | camelCase | PascalCase | PascalCase | No comments |
 | Python | snake_case | PascalCase | snake_case | Docstrings only |
 | Rust | snake_case | PascalCase | snake_case | No comments |
-| C# | camelCase | PascalCase | PascalCase | No comments |
 
 ## Important Notes
 
@@ -125,4 +110,33 @@ print("Error", file=sys.stderr)
 3. **JSON IPC** - All cross-process must be JSON
 4. **Exit codes** - 0=success, 1=failure for CLI
 5. **Stderr usage** - Errors to stderr, data to stdout
-6. **No Windows Hello in WSL** - Only test auth-helper on native Windows
+6. **Session management** - Vault auto-locks after 30 minutes of inactivity
+7. **Cross-platform** - Master password works on Windows/macOS/Linux
+
+## Authentication Flow
+
+### Vault Initialization
+1. User sets master password via SetupVault component
+2. Password → Argon2id KDF → 256-bit encryption key
+3. Salt + key encrypts empty vault with AES-256-GCM
+4. Encrypted vault stored in OS-specific config directory
+
+### Vault Unlock
+1. User enters master password via UnlockVault component
+2. Password + stored salt → Argon2id → decryption key
+3. Key decrypts vault data
+4. Success: Session key stored in memory, vault accessible
+5. Failure: Invalid password error returned
+
+### Vault Lock
+1. User clicks lock button or 30-minute timeout expires
+2. Session key cleared from memory
+3. Future operations require unlock
+4. Vault remains encrypted on disk
+
+### Security
+- **Key derivation**: Argon2id with memory_cost=65536, time_cost=3, parallelism=4
+- **Encryption**: AES-256-GCM with 12-byte nonce
+- **Storage**: OS-specific directories (Windows: APPDATA/Latch, macOS: ~/Library/Application Support/Latch, Linux: ~/.config/latch)
+- **Password**: Never stored, only used for key derivation
+- **Session**: Key in memory only, auto-locks after inactivity

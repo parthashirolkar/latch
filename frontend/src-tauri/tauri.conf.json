@@ -34,7 +34,7 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "vault-core"
+      "binaries/vault-core"
     ]
   }
 }

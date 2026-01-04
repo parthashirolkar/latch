@@ -28,7 +28,7 @@ pub fn run() {
 
 #[tauri::command]
 fn search_entries(query: String) -> Result<String, String> {
-  let output = Command::new("vault-core")
+  let output = Command::new("binaries/vault-core")
     .arg("search")
     .arg(&query)
     .output();
@@ -47,7 +47,7 @@ fn search_entries(query: String) -> Result<String, String> {
 
 #[tauri::command]
 fn request_secret(entry_id: String, field: String) -> Result<String, String> {
-  let output = Command::new("vault-core")
+  let output = Command::new("binaries/vault-core")
     .arg("request-secret")
     .arg(&entry_id)
     .arg(&field)
@@ -67,7 +67,7 @@ fn request_secret(entry_id: String, field: String) -> Result<String, String> {
 
 #[tauri::command]
 fn init_vault(password: String) -> Result<String, String> {
-  let output = Command::new("vault-core")
+  let output = Command::new("binaries/vault-core")
     .arg("init")
     .arg(&password)
     .output();
@@ -86,7 +86,7 @@ fn init_vault(password: String) -> Result<String, String> {
 
 #[tauri::command]
 fn unlock_vault(password: String) -> Result<String, String> {
-  let output = Command::new("vault-core")
+  let output = Command::new("binaries/vault-core")
     .arg("unlock")
     .arg(&password)
     .output();
@@ -105,7 +105,7 @@ fn unlock_vault(password: String) -> Result<String, String> {
 
 #[tauri::command]
 fn lock_vault() -> Result<String, String> {
-  let output = Command::new("vault-core")
+  let output = Command::new("binaries/vault-core")
     .arg("lock")
     .output();
 
@@ -123,7 +123,7 @@ fn lock_vault() -> Result<String, String> {
 
 #[tauri::command]
 fn vault_status() -> Result<String, String> {
-  let output = Command::new("vault-core")
+  let output = Command::new("binaries/vault-core")
     .arg("status")
     .output();
 
