@@ -1,5 +1,6 @@
-# Ignore the compiled binary, but keep this directory
+# Ignore production binaries, but keep dev wrappers
 *.exe
-*
+vault-core-x86_64-pc-windows-msvc.exe
 !.gitignore
-
+!vault-core.cmd
+!vault-core.ps1
