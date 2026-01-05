@@ -1,17 +1,9 @@
-use std::process::Command;
-use std::str;
-
-fn get_vault_core_exe() -> &'static str {
-  if cfg!(windows) {
-    "vault-core.exe"
-  } else {
-    "vault-core"
-  }
-}
+use tauri_plugin_shell::ShellExt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    .plugin(tauri_plugin_shell::init())
     .invoke_handler(tauri::generate_handler![
       search_entries,
       request_secret,
@@ -35,114 +27,97 @@ pub fn run() {
 }
 
 #[tauri::command]
-fn search_entries(query: String) -> Result<String, String> {
-  let output = Command::new(get_vault_core_exe())
-    .arg("search")
-    .arg(&query)
-    .output();
+async fn search_entries(query: String, app: tauri::AppHandle) -> Result<String, String> {
+  let output = app.shell().sidecar("vault-core")
+    .map_err(|e| format!("Failed to resolve vault-core binary: {}", e))?
+    .args(["search", &query])
+    .output()
+    .await
+    .map_err(|e| format!("Failed to spawn vault-core: {}", e))?;
 
-  match output {
-    Ok(output) => {
-      if output.status.success() {
-        Ok(str::from_utf8(&output.stdout).unwrap_or("").to_string())
-      } else {
-        Err(format!("vault-core failed: {}", str::from_utf8(&output.stderr).unwrap_or("unknown error")))
-      }
-    }
-    Err(e) => Err(format!("Failed to execute vault-core: {}", e)),
+  if output.status.success() {
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+  } else {
+    Err(format!("vault-core failed: {}", String::from_utf8_lossy(&output.stderr)))
   }
 }
 
 #[tauri::command]
-fn request_secret(entry_id: String, field: String) -> Result<String, String> {
-  let output = Command::new(get_vault_core_exe())
-    .arg("request-secret")
-    .arg(&entry_id)
-    .arg(&field)
-    .output();
+async fn request_secret(entry_id: String, field: String, app: tauri::AppHandle) -> Result<String, String> {
+  let output = app.shell().sidecar("vault-core")
+    .map_err(|e| format!("Failed to resolve vault-core binary: {}", e))?
+    .args(["request-secret", &entry_id, &field])
+    .output()
+    .await
+    .map_err(|e| format!("Failed to spawn vault-core: {}", e))?;
 
-  match output {
-    Ok(output) => {
-      if output.status.success() {
-        Ok(str::from_utf8(&output.stdout).unwrap_or("").to_string())
-      } else {
-        Err(format!("vault-core failed: {}", str::from_utf8(&output.stderr).unwrap_or("unknown error")))
-      }
-    }
-    Err(e) => Err(format!("Failed to execute vault-core: {}", e)),
+  if output.status.success() {
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+  } else {
+    Err(format!("vault-core failed: {}", String::from_utf8_lossy(&output.stderr)))
   }
 }
 
 #[tauri::command]
-fn init_vault(password: String) -> Result<String, String> {
-  let output = Command::new(get_vault_core_exe())
-    .arg("init")
-    .arg(&password)
-    .output();
+async fn init_vault(password: String, app: tauri::AppHandle) -> Result<String, String> {
+  let output = app.shell().sidecar("vault-core")
+    .map_err(|e| format!("Failed to resolve vault-core binary: {}", e))?
+    .args(["init", &password])
+    .output()
+    .await
+    .map_err(|e| format!("Failed to spawn vault-core: {}", e))?;
 
-  match output {
-    Ok(output) => {
-      if output.status.success() {
-        Ok(str::from_utf8(&output.stdout).unwrap_or("").to_string())
-      } else {
-        Err(format!("vault-core failed: {}", str::from_utf8(&output.stderr).unwrap_or("unknown error")))
-      }
-    }
-    Err(e) => Err(format!("Failed to execute vault-core: {}", e)),
+  if output.status.success() {
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+  } else {
+    Err(format!("vault-core failed: {}", String::from_utf8_lossy(&output.stderr)))
   }
 }
 
 #[tauri::command]
-fn unlock_vault(password: String) -> Result<String, String> {
-  let output = Command::new(get_vault_core_exe())
-    .arg("unlock")
-    .arg(&password)
-    .output();
+async fn unlock_vault(password: String, app: tauri::AppHandle) -> Result<String, String> {
+  let output = app.shell().sidecar("vault-core")
+    .map_err(|e| format!("Failed to resolve vault-core binary: {}", e))?
+    .args(["unlock", &password])
+    .output()
+    .await
+    .map_err(|e| format!("Failed to spawn vault-core: {}", e))?;
 
-  match output {
-    Ok(output) => {
-      if output.status.success() {
-        Ok(str::from_utf8(&output.stdout).unwrap_or("").to_string())
-      } else {
-        Err(format!("vault-core failed: {}", str::from_utf8(&output.stderr).unwrap_or("unknown error")))
-      }
-    }
-    Err(e) => Err(format!("Failed to execute vault-core: {}", e)),
+  if output.status.success() {
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+  } else {
+    Err(format!("vault-core failed: {}", String::from_utf8_lossy(&output.stderr)))
   }
 }
 
 #[tauri::command]
-fn lock_vault() -> Result<String, String> {
-  let output = Command::new(get_vault_core_exe())
-    .arg("lock")
-    .output();
+async fn lock_vault(app: tauri::AppHandle) -> Result<String, String> {
+  let output = app.shell().sidecar("vault-core")
+    .map_err(|e| format!("Failed to resolve vault-core binary: {}", e))?
+    .args(["lock"])
+    .output()
+    .await
+    .map_err(|e| format!("Failed to spawn vault-core: {}", e))?;
 
-  match output {
-    Ok(output) => {
-      if output.status.success() {
-        Ok(str::from_utf8(&output.stdout).unwrap_or("").to_string())
-      } else {
-        Err(format!("vault-core failed: {}", str::from_utf8(&output.stderr).unwrap_or("unknown error")))
-      }
-    }
-    Err(e) => Err(format!("Failed to execute vault-core: {}", e)),
+  if output.status.success() {
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+  } else {
+    Err(format!("vault-core failed: {}", String::from_utf8_lossy(&output.stderr)))
   }
 }
 
 #[tauri::command]
-fn vault_status() -> Result<String, String> {
-  let output = Command::new(get_vault_core_exe())
-    .arg("status")
-    .output();
+async fn vault_status(app: tauri::AppHandle) -> Result<String, String> {
+  let output = app.shell().sidecar("vault-core")
+    .map_err(|e| format!("Failed to resolve vault-core binary: {}", e))?
+    .args(["status"])
+    .output()
+    .await
+    .map_err(|e| format!("Failed to spawn vault-core: {}", e))?;
 
-  match output {
-    Ok(output) => {
-      if output.status.success() {
-        Ok(str::from_utf8(&output.stdout).unwrap_or("").to_string())
-      } else {
-        Err(format!("vault-core failed: {}", str::from_utf8(&output.stderr).unwrap_or("unknown error")))
-      }
-    }
-    Err(e) => Err(format!("Failed to execute vault-core: {}", e)),
+  if output.status.success() {
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+  } else {
+    Err(format!("vault-core failed: {}", String::from_utf8_lossy(&output.stderr)))
   }
 }
