@@ -1,0 +1,16 @@
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+for depth in "../../../" "../../../../" "../../../../../"; do
+  cd "$SCRIPT_DIR/$depth" 2>/dev/null
+  if [ -d "vault-core" ]; then
+    cd vault-core
+    /home/partha/.local/bin/uv run python -m latch_vault.main "$@"
+    exit $?
+  fi
+  cd "$SCRIPT_DIR"
+done
+
+echo "Error: vault-core directory not found" >&2
+exit 1
