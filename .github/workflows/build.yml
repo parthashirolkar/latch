@@ -14,11 +14,11 @@ jobs:
   build:
     name: Build Windows
     runs-on: windows-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Cache Python dependencies
         uses: actions/cache@v4
         with:
@@ -26,7 +26,7 @@ jobs:
           key: ${{ runner.os }}-python-${{ hashFiles('vault-core/pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-python-
-      
+
       - name: Cache Rust cargo
         uses: actions/cache@v4
         with:
@@ -39,7 +39,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      
+
       - name: Cache Bun modules
         uses: actions/cache@v4
         with:
@@ -49,47 +49,75 @@ jobs:
           key: ${{ runner.os }}-bun-${{ hashFiles('frontend/package.json', 'frontend/bun.lockb') }}
           restore-keys: |
             ${{ runner.os }}-bun-
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      
-      - name: Install uv
-        run: |
-          Invoke-WebRequest -Uri "https://astral.sh/uv/install.ps1" -OutFile "install.ps1"
-          .\install.ps1
-      
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Install Nuitka
-        run: uv tool install nuitka
-      
-      - name: Build application
-        run: pwsh -File scripts/build.ps1
-      
+      - name: Install uv
+        run: |
+          Invoke-WebRequest -Uri "https://astral.sh/uv/install.ps1" -OutFile "install.ps1"
+          .\install.ps1
+
+      - name: Build vault-core with Nuitka-Action
+        uses: Nuitka/Nuitka-Action@main
+        with:
+          nuitka-version: 2.8.9
+          script-name: vault-core/latch_vault/main.py
+          mode: standalone
+          extra-options: "--onefile --output=dist/vault-core.exe"
+
+      - name: Copy vault-core to Tauri binaries
+        run: |
+          if (Test-Path "dist\vault-core.exe") {
+            New-Item -ItemType Directory -Force -Path frontend/src-tauri/binaries
+            Copy-Item "dist\vault-core.exe" "frontend/src-tauri/binaries/vault-core-x86_64-pc-windows-msvc.exe"
+            Write-Host "✓ vault-core.exe copied to Tauri binaries"
+          } else {
+            Write-Host "✗ vault-core.exe not found in dist/"
+            exit 1
+          }
+
+      - name: Build Tauri application
+        run: |
+          cd frontend
+          bun install
+          bun run tauri build
+
+      - name: Create portable zip
+        run: |
+          $PortableDir = "dist/portable"
+          New-Item -ItemType Directory -Force -Path $PortableDir
+          Get-ChildItem "dist/*.exe" -Exclude "*.nsi" | ForEach-Object {
+            Copy-Item $_.FullName $PortableDir
+          }
+          Compress-Archive -Path "$PortableDir/*" -DestinationPath "dist/Latch-portable.zip" -Force
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: latch-installer
           path: dist/*.exe
           retention-days: 7
-      
+
       - name: Upload portable zip artifact
         uses: actions/upload-artifact@v4
         with:
           name: latch-portable
           path: dist/*.zip
           retention-days: 7
-      
+
       - name: Create build summary
         run: |
           Write-Host "## Build Summary" >> $env:GITHUB_STEP_SUMMARY

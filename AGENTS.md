@@ -8,16 +8,19 @@ This file provides guidelines for AI agents working on Latch Password Manager co
 ```bash
 cd frontend && bun run dev         # Development server
 cd frontend && bun run build        # Build frontend
-cd frontend && tsc --noEmit       # Type check
+cd frontend && bun run typecheck    # TypeScript type check
+cd frontend && bun run tauri dev    # Tauri development mode (includes Rust)
+cd frontend/src-tauri && cargo check    # Rust compilation check
 ```
 
 ### Vault Core (Python)
 ```bash
-cd vault-core && uv sync                        # Install deps
+cd vault-core && uv sync                    # Install deps
 cd vault-core && uv run python -m latch_vault.main  # Run CLI
-cd vault-core && uv add <package>                 # Add deps
-cd vault-core && uv run pytest                  # Run tests with coverage
-cd vault-core && uv run pytest --cov=latch_vault --cov-report=html  # HTML coverage report
+cd vault-core && uv run pytest              # Run all tests
+cd vault-core && uv run pytest -k test_cli_status  # Run single test
+cd vault-core && uv run pytest --cov=latch_vault  # Coverage report
+cd vault-core && uv run pytest tests/test_main.py::test_cli_init  # Specific test
 ```
 
 ### Full Project
@@ -25,7 +28,6 @@ cd vault-core && uv run pytest --cov=latch_vault --cov-report=html  # HTML cover
 ./scripts/dev.sh         # Dev setup
 ./scripts/build.sh        # Linux/WSL build
 .\scripts\build.ps1       # Windows production build
-.\scripts\build.ps1 -Clean   # Clean build
 ```
 
 ## Code Style Guidelines
@@ -41,25 +43,26 @@ cd vault-core && uv run pytest --cov=latch_vault --cov-report=html  # HTML cover
 
 **Imports**: Standard lib → third-party → local
 ```typescript
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import App from './App'
+import SetupVault from './components/SetupVault'
 ```
 
 **Components**: Functional with hooks, PascalCase, named exports
 ```typescript
-function MyComponent() { ... }
+function MyComponent({ prop }: Props) { ... }
 export default MyComponent
 ```
 
 **Types**: Interfaces for all data structures
 ```typescript
 interface Entry { id: string; title: string; username: string }
+interface VaultStatus { status: string; has_vault: boolean; is_unlocked: boolean }
 ```
 
 **State**: `const [data, setData] = useState<Type[]>([])`
-**Error**: `try { await invoke() } catch (e) { console.error(e) }`
-**Naming**: camelCase vars/funcs, PascalCase components, className for CSS, no comments
+**Error**: `try { await invoke() } catch (error) { console.error('Error:', error) }`
+**Naming**: camelCase vars/funcs, PascalCase components, className for CSS
 **CSS**: kebab-case, system font stack, #1a1a1a dark base
 
 ### Python
@@ -68,7 +71,9 @@ interface Entry { id: string; title: string; username: string }
 ```python
 import sys
 import json
+from typing import Optional
 from pydantic import BaseModel
+from latch_vault.crypto import derive_key
 ```
 
 **Types**: All functions have hints, use `list[Type]` not `List[Type]`
@@ -79,22 +84,25 @@ def search(query: str) -> list[Entry]: ...
 **Data Models**: Use pydantic BaseModel
 ```python
 class Entry(BaseModel): id: str; title: str
+class VaultStatus(BaseModel): status: str; has_vault: bool
 ```
 
 **Output**: stdout=JSON data, stderr=errors
 ```python
 print(json.dumps(result))
-print("Error", file=sys.stderr)
+print("Error message", file=sys.stderr)
+sys.exit(1)
 ```
 
 **Error**: `try/except Exception as e: sys.exit(1)`
-**Naming**: snake_case vars/funcs, PascalCase classes, `cli()` entry point, `if __name__ == "__main__"`
+**Naming**: snake_case vars/funcs, PascalCase classes, `cli()` entry point
 
 ### Rust (Tauri)
 
-**Imports**: `use std::...; use tauri::command;`
-**Commands**: `#[tauri::command] fn name(param: String) -> Result<String, String>`
-**Error**: `match { Ok(_) => { if success { Ok(_) } else { Err(_) } } Err(_) => Err(_) }`
+**Imports**: `use tauri_plugin_shell::ShellExt; use tauri::command;`
+**Commands**: `#[tauri::command] async fn name(param: String, app: tauri::AppHandle) -> Result<String, String>`
+**Sidecar Pattern**: Use `app.shell().sidecar("vault-core")` NOT `std::process::Command`
+**Error**: `.map_err()`, `.await` for async, check `output.status.success()`
 **Naming**: snake_case vars/funcs, PascalCase types, `cfg!` for platform code
 
 ## Conventions Summary
@@ -112,33 +120,26 @@ print("Error", file=sys.stderr)
 3. **JSON IPC** - All cross-process must be JSON
 4. **Exit codes** - 0=success, 1=failure for CLI
 5. **Stderr usage** - Errors to stderr, data to stdout
-6. **Session management** - Vault auto-locks after 30 minutes of inactivity
-7. **Cross-platform** - Master password works on Windows/macOS/Linux
+6. **Session management** - Vault auto-locks after 30 minutes
+7. **Tauri sidecars** - Always use `app.shell().sidecar()` to invoke vault-core
+8. **Dev mode** - Python wrappers use `uv run python` for faster development
 
 ## Authentication Flow
 
 ### Vault Initialization
-1. User sets master password via SetupVault component
+1. User sets master password → `invoke('init_vault', { password })`
 2. Password → Argon2id KDF → 256-bit encryption key
 3. Salt + key encrypts empty vault with AES-256-GCM
 4. Encrypted vault stored in OS-specific config directory
 
 ### Vault Unlock
-1. User enters master password via UnlockVault component
+1. User enters password → `invoke('unlock_vault', { password })`
 2. Password + stored salt → Argon2id → decryption key
-3. Key decrypts vault data
-4. Success: Session key stored in memory, vault accessible
-5. Failure: Invalid password error returned
-
-### Vault Lock
-1. User clicks lock button or 30-minute timeout expires
-2. Session key cleared from memory
-3. Future operations require unlock
-4. Vault remains encrypted on disk
+3. Key decrypts vault data → session key stored in memory
+4. Success: vault accessible; Failure: "Invalid password" error
 
 ### Security
-- **Key derivation**: Argon2id with memory_cost=65536, time_cost=3, parallelism=4
+- **Key derivation**: Argon2id (memory_cost=65536, time_cost=3, parallelism=4)
 - **Encryption**: AES-256-GCM with 12-byte nonce
-- **Storage**: OS-specific directories (Windows: APPDATA/Latch, macOS: ~/Library/Application Support/Latch, Linux: ~/.config/latch)
+- **Storage**: Windows: APPDATA/Latch, macOS: ~/Library/Application Support/Latch, Linux: ~/.config/latch
 - **Password**: Never stored, only used for key derivation
-- **Session**: Key in memory only, auto-locks after inactivity
