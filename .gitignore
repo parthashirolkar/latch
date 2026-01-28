@@ -18,31 +18,6 @@ build/
 *.dylib
 target/
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-.venv/
-.pytest_cache/
-.coverage
-htmlcov/
-*.spec
-build.py
-*.build/
-
-# Python Nuitka
-*.dist/
-*.onefile-build/
-*.binaries/
-*.standalone/
-
 # Bun / Node
 node_modules/
 .bun/
@@ -56,16 +31,6 @@ yarn.lock
 target/
 Cargo.lock
 frontend/src-tauri/target/
-
-# C# / .NET
-bin/
-obj/
-*.user
-*.suo
-*.cache
-*.userosscache
-*.sln.docstates
-.vs/
 
 # Local config
 .env

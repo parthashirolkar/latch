@@ -8,30 +8,9 @@ BUILD_DIR="${PROJECT_ROOT}/dist"
 echo "🏗️  Building Latch Password Manager"
 echo "Project root: ${PROJECT_ROOT}"
 
-# Parse build configuration
-if [ -f "${PROJECT_ROOT}/build.toml" ]; then
-    echo "✓ Found build.toml"
-else
-    echo "✗ build.toml not found, using defaults"
-fi
-
 # Clean and create build directory
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
-
-# Build Python vault-core
-echo ""
-echo "🐍 Building Python vault-core..."
-cd "${PROJECT_ROOT}/vault-core"
-
-if [ -f "pyproject.toml" ]; then
-    echo "  Using uv to build Python component"
-    uv sync
-    echo "  ✓ Python dependencies installed"
-    echo "  ⚠️  Note: Full exe build requires Windows. In WSL, Python scripts will be used."
-else
-    echo "  ⚠️  No pyproject.toml found, skipping Python build"
-fi
 
 # Build Tauri frontend
 echo ""
@@ -42,22 +21,39 @@ if [ -f "package.json" ]; then
     echo "  Using bun to install dependencies"
     bun install
     echo "  ✓ Dependencies installed"
-    
+
     if [ -d "src-tauri" ]; then
-        echo "  ✓ Tauri project found"
-        echo "  ⚠️  Note: Full Tauri build requires Windows. In WSL, dev mode only."
-        echo "  To build for Windows, run build.ps1 on Windows."
+        echo "  Building with Tauri..."
+        bun run tauri build
+        echo "  ✓ Tauri build complete"
+
+        # Copy platform-specific artifacts
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            if [ -d "src-tauri/target/release/bundle/dmg" ]; then
+                cp src-tauri/target/release/bundle/dmg/*.app "${BUILD_DIR}/" 2>/dev/null || true
+            fi
+            if [ -d "src-tauri/target/release/bundle/macos" ]; then
+                cp src-tauri/target/release/bundle/macos/*.app "${BUILD_DIR}/" 2>/dev/null || true
+            fi
+        else
+            # Linux
+            if [ -d "src-tauri/target/release/bundle/deb" ]; then
+                cp src-tauri/target/release/bundle/deb/*.deb "${BUILD_DIR}/" 2>/dev/null || true
+            fi
+            if [ -d "src-tauri/target/release/bundle/appimage" ]; then
+                cp src-tauri/target/release/bundle/appimage/*.AppImage "${BUILD_DIR}/" 2>/dev/null || true
+            fi
+        fi
     else
         echo "  ⚠️  No src-tauri directory found"
     fi
 else
-    echo "  ⚠️  No package.json found, skipping Tauri build"
+    echo "  ⚠️  No package.json found, skipping build"
 fi
 
 echo ""
-echo "✅ WSL development setup complete!"
+echo "✅ Build complete!"
 echo ""
-echo "Next steps:"
-echo "  1. Copy project to Windows filesystem"
-echo "  2. On Windows, run: scripts\\build.ps1"
-echo "  3. Or run: scripts\\dev.ps1 for development mode"
+echo "Output directory: ${BUILD_DIR}"
+ls -la "${BUILD_DIR}"

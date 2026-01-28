@@ -1,123 +1,91 @@
-use tauri_plugin_shell::ShellExt;
+mod vault;
+
+use serde_json::json;
+use std::sync::Mutex;
+use tauri::{Manager, State};
+use vault::Vault;
+
+struct VaultState(Mutex<Vault>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  tauri::Builder::default()
-    .plugin(tauri_plugin_shell::init())
-    .invoke_handler(tauri::generate_handler![
-      search_entries,
-      request_secret,
-      init_vault,
-      unlock_vault,
-      lock_vault,
-      vault_status,
-    ])
-    .setup(|app| {
-      if cfg!(debug_assertions) {
-        app.handle().plugin(
-          tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build(),
-        )?;
-      }
-      Ok(())
-    })
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .setup(|app| {
+            if cfg!(debug_assertions) {
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::default()
+                        .level(log::LevelFilter::Info)
+                        .build(),
+                )?;
+            }
+
+            let vault = Vault::new().expect("Failed to initialize vault");
+            app.manage(VaultState(Mutex::new(vault)));
+
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            search_entries,
+            request_secret,
+            init_vault,
+            unlock_vault,
+            lock_vault,
+            vault_status,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }
 
 #[tauri::command]
-async fn search_entries(query: String, app: tauri::AppHandle) -> Result<String, String> {
-  let output = app.shell().sidecar("vault-core")
-    .map_err(|e| format!("Failed to resolve vault-core binary: {}", e))?
-    .args(["search", &query])
-    .output()
-    .await
-    .map_err(|e| format!("Failed to spawn vault-core: {}", e))?;
+async fn search_entries(query: String, state: State<'_, VaultState>) -> Result<String, String> {
+    let vault = &mut state.0.lock().unwrap();
+    let results = vault.search_entries(&query)?;
 
-  if output.status.success() {
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-  } else {
-    Err(format!("vault-core failed: {}", String::from_utf8_lossy(&output.stderr)))
-  }
+    serde_json::to_string(&results).map_err(|e| format!("Failed to serialize results: {}", e))
 }
 
 #[tauri::command]
-async fn request_secret(entry_id: String, field: String, app: tauri::AppHandle) -> Result<String, String> {
-  let output = app.shell().sidecar("vault-core")
-    .map_err(|e| format!("Failed to resolve vault-core binary: {}", e))?
-    .args(["request-secret", &entry_id, &field])
-    .output()
-    .await
-    .map_err(|e| format!("Failed to spawn vault-core: {}", e))?;
+async fn request_secret(
+    entry_id: String,
+    field: String,
+    state: State<'_, VaultState>,
+) -> Result<String, String> {
+    let vault = &mut state.0.lock().unwrap();
+    let secret = vault.get_entry(&entry_id, &field)?;
 
-  if output.status.success() {
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-  } else {
-    Err(format!("vault-core failed: {}", String::from_utf8_lossy(&output.stderr)))
-  }
+    Ok(json!({"status": "success", "value": secret}).to_string())
 }
 
 #[tauri::command]
-async fn init_vault(password: String, app: tauri::AppHandle) -> Result<String, String> {
-  let output = app.shell().sidecar("vault-core")
-    .map_err(|e| format!("Failed to resolve vault-core binary: {}", e))?
-    .args(["init", &password])
-    .output()
-    .await
-    .map_err(|e| format!("Failed to spawn vault-core: {}", e))?;
+async fn init_vault(password: String, state: State<'_, VaultState>) -> Result<String, String> {
+    let vault = &mut state.0.lock().unwrap();
+    vault.init_vault(&password)?;
 
-  if output.status.success() {
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-  } else {
-    Err(format!("vault-core failed: {}", String::from_utf8_lossy(&output.stderr)))
-  }
+    Ok(json!({"status": "success"}).to_string())
 }
 
 #[tauri::command]
-async fn unlock_vault(password: String, app: tauri::AppHandle) -> Result<String, String> {
-  let output = app.shell().sidecar("vault-core")
-    .map_err(|e| format!("Failed to resolve vault-core binary: {}", e))?
-    .args(["unlock", &password])
-    .output()
-    .await
-    .map_err(|e| format!("Failed to spawn vault-core: {}", e))?;
+async fn unlock_vault(password: String, state: State<'_, VaultState>) -> Result<String, String> {
+    let vault = &mut state.0.lock().unwrap();
+    vault.unlock_vault(&password)?;
 
-  if output.status.success() {
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-  } else {
-    Err(format!("vault-core failed: {}", String::from_utf8_lossy(&output.stderr)))
-  }
+    Ok(json!({"status": "success"}).to_string())
 }
 
 #[tauri::command]
-async fn lock_vault(app: tauri::AppHandle) -> Result<String, String> {
-  let output = app.shell().sidecar("vault-core")
-    .map_err(|e| format!("Failed to resolve vault-core binary: {}", e))?
-    .args(["lock"])
-    .output()
-    .await
-    .map_err(|e| format!("Failed to spawn vault-core: {}", e))?;
+async fn lock_vault(state: State<'_, VaultState>) -> Result<String, String> {
+    let vault = &mut state.0.lock().unwrap();
+    vault.lock_vault();
 
-  if output.status.success() {
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-  } else {
-    Err(format!("vault-core failed: {}", String::from_utf8_lossy(&output.stderr)))
-  }
+    Ok(json!({"status": "success"}).to_string())
 }
 
 #[tauri::command]
-async fn vault_status(app: tauri::AppHandle) -> Result<String, String> {
-  let output = app.shell().sidecar("vault-core")
-    .map_err(|e| format!("Failed to resolve vault-core binary: {}", e))?
-    .args(["status"])
-    .output()
-    .await
-    .map_err(|e| format!("Failed to spawn vault-core: {}", e))?;
+async fn vault_status(state: State<'_, VaultState>) -> Result<String, String> {
+    let vault = state.0.lock().unwrap();
+    let unlocked = vault.is_unlocked();
+    let has_vault = vault.vault_exists();
 
-  if output.status.success() {
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-  } else {
-    Err(format!("vault-core failed: {}", String::from_utf8_lossy(&output.stderr)))
-  }
+    Ok(json!({"has_vault": has_vault, "is_unlocked": unlocked}).to_string())
 }

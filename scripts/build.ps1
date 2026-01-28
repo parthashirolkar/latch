@@ -12,14 +12,6 @@ $BuildDir = Join-Path $ProjectRoot "dist"
 Write-Host "🏗️  Building Latch Password Manager (Windows)" -ForegroundColor Cyan
 Write-Host "Project root: $ProjectRoot" -ForegroundColor Gray
 
-# Parse build configuration
-$ConfigFile = Join-Path $ProjectRoot "build.toml"
-if (Test-Path $ConfigFile) {
-    Write-Host "✓ Found build.toml" -ForegroundColor Green
-} else {
-    Write-Host "✗ build.toml not found, using defaults" -ForegroundColor Yellow
-}
-
 # Clean build directory if requested
 if ($Clean) {
     Write-Host ""
@@ -29,50 +21,6 @@ if ($Clean) {
     }
 }
 New-Item -ItemType Directory -Force -Path $BuildDir | Out-Null
-
-# Build Python vault-core
-Write-Host ""
-Write-Host "🐍 Building Python vault-core with Nuitka..." -ForegroundColor Cyan
-$PythonDir = Join-Path $ProjectRoot "vault-core"
-$PythonBuildDir = Join-Path $PythonDir "build"
-$PythonDistDir = Join-Path $PythonDir "dist"
-
-Push-Location $PythonDir
-
-if (Test-Path "pyproject.toml") {
-    Write-Host "  Using uv to install Python dependencies" -ForegroundColor Gray
-    uv sync
-    
-    Write-Host "  Building standalone executable with Nuitka..." -ForegroundColor Gray
-    
-    # Nuitka command to build standalone exe
-    $NuitkaCmd = @(
-        "uv", "run", "nuitka"
-        "--standalone"
-        "--onefile"
-        "--output-dir=dist"
-        "latch_vault/main.py"
-    ) -join " "
-    
-    Invoke-Expression $NuitkaCmd
-    
-    if (Test-Path "$PythonDistDir/main.exe") {
-        Copy-Item "$PythonDistDir/main.exe" "$BuildDir/vault-core.exe"
-        $TauriBinariesDir = Join-Path $ProjectRoot "frontend/src-tauri/binaries"
-        New-Item -ItemType Directory -Force -Path $TauriBinariesDir | Out-Null
-        Copy-Item "$PythonDistDir/main.exe" "$TauriBinariesDir/vault-core-x86_64-pc-windows-msvc.exe"
-        Write-Host "  ✓ vault-core.exe built successfully" -ForegroundColor Green
-    } else {
-        Write-Host "  ✗ Nuitka build failed" -ForegroundColor Red
-        exit 1
-    }
-} else {
-    Write-Host "  ⚠️  No pyproject.toml found, skipping Python build" -ForegroundColor Yellow
-}
-
-Pop-Location
-
-
 
 # Build Tauri frontend
 Write-Host ""
@@ -84,7 +32,7 @@ Push-Location $FrontendDir
 if (Test-Path "package.json") {
     Write-Host "  Using bun to install dependencies" -ForegroundColor Gray
     bun install
-    
+
     Write-Host "  Building with Tauri..." -ForegroundColor Gray
 
     if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
@@ -95,7 +43,7 @@ if (Test-Path "package.json") {
 
     if (Test-Path "src-tauri") {
         bun run tauri build
-        
+
         $TauriBuildDir = Join-Path $FrontendDir "src-tauri/target/release/bundle/nsis"
         if (Test-Path "$TauriBuildDir/*.exe") {
             $InstallerPath = Get-ChildItem "$TauriBuildDir/*.exe" | Select-Object -First 1
@@ -122,9 +70,10 @@ $ZipPath = Join-Path $BuildDir "Latch-portable.zip"
 $PortableDir = Join-Path $BuildDir "portable"
 New-Item -ItemType Directory -Force -Path $PortableDir | Out-Null
 
-# Copy all executables to portable directory
-Copy-Item "$BuildDir/vault-core.exe" $PortableDir -ErrorAction SilentlyContinue
-Copy-Item "$BuildDir/*.exe" $PortableDir -Exclude "*.nsi" -ErrorAction SilentlyContinue
+$TauriReleaseDir = Join-Path $FrontendDir "src-tauri/target/release"
+if (Test-Path "$TauriReleaseDir/Latch.exe") {
+    Copy-Item "$TauriReleaseDir/Latch.exe" $PortableDir
+}
 
 Compress-Archive -Path "$PortableDir/*" -DestinationPath $ZipPath -Force
 Write-Host "  ✓ Portable zip created at: $ZipPath" -ForegroundColor Green

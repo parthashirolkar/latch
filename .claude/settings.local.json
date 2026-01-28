@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_exa-mcp-server_exa__get_code_context_exa"
+    ]
+  }
+}
