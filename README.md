@@ -49,7 +49,7 @@ Artifacts are output to `dist/`.
 
 ```bash
 cd frontend
-bun run dev
+bun run tauri dev
 ```
 
 ## Project Structure
