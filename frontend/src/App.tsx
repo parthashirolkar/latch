@@ -1,17 +1,8 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import SetupVault from './components/SetupVault'
-import UnlockVault from './components/UnlockVault'
-import LockButton from './components/LockButton'
-
-interface Entry {
-  id: string
-  title: string
-  username: string
-}
+import CommandPalette from './components/CommandPalette'
 
 interface VaultStatus {
-  status: string
   has_vault: boolean
   is_unlocked: boolean
 }
@@ -19,8 +10,6 @@ interface VaultStatus {
 function App() {
   const [hasVault, setHasVault] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [results, setResults] = useState<Entry[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -41,107 +30,21 @@ function App() {
     }
   }
 
-  const handleUnlockSuccess = () => {
-    setIsUnlocked(true)
-  }
-
-  const handleLock = () => {
-    setIsUnlocked(false)
-    setSearchQuery('')
-    setResults([])
-  }
-
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query)
-
-    if (query.length < 2) {
-      setResults([])
-      return
-    }
-
-    try {
-      const result = await invoke('search_entries', { query })
-      const entries = JSON.parse(result as string)
-
-      if (Array.isArray(entries)) {
-        setResults(entries)
-      } else if (entries.status === 'error') {
-        console.error('Search failed:', entries.message)
-        setIsUnlocked(false)
-      }
-    } catch (error) {
-      console.error('Search failed:', error)
-      setResults([])
-    }
-  }
-
-  const handleCopyPassword = async (entryId: string) => {
-    try {
-      const result = await invoke('request_secret', { entryId, field: 'password' })
-      const response = JSON.parse(result as string)
-
-      if (response.status === 'success' && response.value) {
-        await navigator.clipboard.writeText(response.value)
-        console.log('Password copied for:', entryId)
-      } else if (response.status === 'error') {
-        console.error('Failed to copy password:', response.message)
-        if (response.message.includes('locked')) {
-          setIsUnlocked(false)
-        }
-      }
-    } catch (error) {
-      console.error('Failed to copy password:', error)
-    }
-  }
-
   if (loading) {
-    return <div className="container">Loading...</div>
+    return (
+      <div className="app-container">
+        <div className="command-palette">
+          <div className="palette-loading">Loading...</div>
+        </div>
+      </div>
+    )
   }
 
-  if (!hasVault) {
-    return <SetupVault onSuccess={checkVaultStatus} />
-  }
-
-  if (!isUnlocked) {
-    return <UnlockVault onSuccess={handleUnlockSuccess} />
-  }
+  const initialMode = !hasVault ? 'setup' : !isUnlocked ? 'locked' : 'search'
 
   return (
-    <div className="container">
-      <div className="header">
-        <h1>Latch</h1>
-        <LockButton onLock={handleLock} />
-      </div>
-
-      <div className="search-box">
-        <input
-          type="text"
-          placeholder="Search passwords... (Cmd+K)"
-          value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="search-input"
-          autoFocus
-        />
-      </div>
-
-      {results.length > 0 && (
-        <ul className="results-list">
-          {results.map((result) => (
-            <li key={result.id} className="result-item">
-              <div className="result-info">
-                <div className="result-title">{result.title}</div>
-                <div className="result-username">{result.username}</div>
-              </div>
-              <button
-                className="copy-button"
-                onClick={() => handleCopyPassword(result.id)}
-              >
-                Copy
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="app-container">
+      <CommandPalette initialMode={initialMode} />
     </div>
   )
 }
