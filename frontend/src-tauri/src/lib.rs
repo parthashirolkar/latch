@@ -20,6 +20,8 @@ fn setup_system_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>>
         .item(&quit_item)
         .build()?;
 
+    // Load password.ico for system tray icon using the default window icon
+    // The password.ico will be used because it's specified in tauri.conf.json
     let _tray = TrayIconBuilder::with_id("main-tray")
         .menu(&menu)
         .tooltip("Latch Password Manager")
