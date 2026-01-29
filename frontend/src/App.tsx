@@ -80,7 +80,8 @@ function App() {
       const result = await invoke('request_secret', { entryId, field: 'password' })
       const response = JSON.parse(result as string)
 
-      if (response.status === 'success') {
+      if (response.status === 'success' && response.value) {
+        await navigator.clipboard.writeText(response.value)
         console.log('Password copied for:', entryId)
       } else if (response.status === 'error') {
         console.error('Failed to copy password:', response.message)

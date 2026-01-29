@@ -11,14 +11,6 @@ echo ""
 # Check prerequisites
 echo "🔍 Checking prerequisites..."
 
-# Check uv
-if ! command -v uv &> /dev/null; then
-    echo "  ✗ uv not found. Install from: https://github.com/astral-sh/uv"
-    echo "    curl -LsSf https://astral.sh/uv/install.sh | sh"
-    exit 1
-fi
-echo "  ✓ uv installed"
-
 # Check bun
 if ! command -v bun &> /dev/null; then
     echo "  ✗ bun not found. Install from: https://bun.sh"
@@ -34,18 +26,13 @@ if ! command -v node &> /dev/null; then
 fi
 echo "  ✓ node installed"
 
-echo ""
-
-# Setup Python vault-core
-echo "🐍 Setting up Python vault-core..."
-cd "${PROJECT_ROOT}/vault-core"
-
-if [ -f "pyproject.toml" ]; then
-    uv sync
-    echo "  ✓ Python dependencies installed"
-else
-    echo "  ⚠️  No pyproject.toml found, skipping Python setup"
+# Check cargo
+if ! command -v cargo &> /dev/null; then
+    echo "  ✗ cargo not found. Install Rust from: https://rustup.rs"
+    echo "    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+    exit 1
 fi
+echo "  ✓ Rust/Cargo installed"
 
 echo ""
 
@@ -61,24 +48,11 @@ else
 fi
 
 echo ""
-
-# Check Tauri CLI
-if [ -d "src-tauri" ]; then
-    if ! command -v cargo &> /dev/null; then
-        echo "  ⚠️  cargo not found. Install Rust from: https://rustup.rs"
-        echo "    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
-    else
-        echo "  ✓ Rust/Cargo installed"
-    fi
-fi
-
-echo ""
 echo "✅ Development environment setup complete!"
 echo ""
 echo "Development commands:"
-echo "  frontend/     → bun run dev"
-echo "  vault-core/   → uv run python main.py"
+echo "  cd frontend && bun run tauri dev    → Start Tauri development server"
 echo ""
 echo "Build commands:"
-echo "  scripts/build.sh    → Build for current platform"
-echo "  scripts/build.ps1   → Build Windows installer (run on Windows)"
+echo "  scripts/build.sh              → Build for current platform"
+echo "  scripts/build.ps1             → Build Windows installer (run on Windows)"
