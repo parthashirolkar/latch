@@ -3,6 +3,7 @@ mod vault;
 use serde_json::json;
 use std::sync::Mutex;
 use tauri::{Manager, State};
+use tauri_plugin_global_shortcut::ShortcutState;
 use vault::Vault;
 
 struct VaultState(Mutex<Vault>);
@@ -11,6 +12,7 @@ struct VaultState(Mutex<Vault>);
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -22,6 +24,22 @@ pub fn run() {
 
             let vault = Vault::new().expect("Failed to initialize vault");
             app.manage(VaultState(Mutex::new(vault)));
+
+            let handle = app.handle().clone();
+            app.handle()
+                .plugin(
+                    tauri_plugin_global_shortcut::Builder::new()
+                        .with_shortcut("Alt+Space")?
+                        .with_handler(move |_app, _shortcut, event| {
+                            if event.state == ShortcutState::Pressed {
+                                if let Some(window) = handle.get_webview_window("main") {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                }
+                            }
+                        })
+                        .build(),
+                )?;
 
             Ok(())
         })

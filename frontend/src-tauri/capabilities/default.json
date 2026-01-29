@@ -7,6 +7,8 @@
   ],
   "permissions": [
     "core:default",
+    "core:window:allow-set-size",
+    "core:window:allow-center",
     {
       "identifier": "shell:allow-execute",
       "allow": [
