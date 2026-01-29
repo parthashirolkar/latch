@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
+import { LucideIcon } from 'lucide-react'
 
 export interface PaletteListItem {
   id: string
   title: string
   subtitle?: string
-  icon?: string
+  icon?: LucideIcon
 }
 
 interface PaletteListProps {
@@ -40,7 +41,7 @@ function PaletteList({ items, selectedIndex, onSelect, emptyMessage = 'No result
           className={`palette-list-item ${index === selectedIndex ? 'selected' : ''}`}
           onClick={() => onSelect(item, index)}
         >
-          {item.icon && <span className="palette-list-item-icon">{item.icon}</span>}
+          {item.icon && <item.icon className="palette-list-item-icon" size={18} />}
           <div className="palette-list-item-content">
             <div className="palette-list-item-title">{item.title}</div>
             {item.subtitle && <div className="palette-list-item-subtitle">{item.subtitle}</div>}

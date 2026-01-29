@@ -1,8 +1,11 @@
+import { LucideIcon } from 'lucide-react'
+import { Key, User, ArrowLeft, LogOut } from 'lucide-react'
+
 export interface Action {
   id: string
   title: string
   subtitle?: string
-  icon: string
+  icon: LucideIcon
   handler: () => void | Promise<void>
 }
 
@@ -19,26 +22,26 @@ export function createEntryActions(
       id: 'copy-password',
       title: 'Copy Password',
       subtitle: entryTitle,
-      icon: '🔑',
+      icon: Key,
       handler: () => onCopyPassword(entryId),
     },
     {
       id: 'copy-username',
       title: 'Copy Username',
       subtitle: entryTitle,
-      icon: '👤',
+      icon: User,
       handler: () => onCopyUsername(entryId),
     },
     {
       id: 'back',
       title: 'Back to Search',
-      icon: '←',
+      icon: ArrowLeft,
       handler: onBack,
     },
     {
       id: 'lock',
       title: 'Lock Vault',
-      icon: '🔒',
+      icon: LogOut,
       handler: onLock,
     },
   ]

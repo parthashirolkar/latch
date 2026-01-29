@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { LucideIcon } from 'lucide-react'
 
 interface PaletteInputProps {
   value: string
@@ -6,7 +7,7 @@ interface PaletteInputProps {
   onSubmit?: () => void
   placeholder: string
   type?: 'text' | 'password'
-  icon?: string
+  icon?: LucideIcon
   autoFocus?: boolean
   hint?: string
 }
@@ -17,7 +18,7 @@ function PaletteInput({
   onSubmit,
   placeholder,
   type = 'text',
-  icon = '🔍',
+  icon: Icon,
   autoFocus = true,
   hint,
 }: PaletteInputProps) {
@@ -39,7 +40,7 @@ function PaletteInput({
   return (
     <div className="palette-input-container">
       <div className="palette-input-wrapper">
-        <span className="palette-input-icon">{icon}</span>
+        {Icon && <Icon className="palette-input-icon" size={20} />}
         <input
           ref={inputRef}
           type={type}

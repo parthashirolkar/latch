@@ -1,12 +1,23 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
+import {
+  Search,
+  Lock,
+  Globe,
+  User,
+  Key,
+  Link,
+  AlignLeft,
+  Plus,
+  LogOut
+} from 'lucide-react'
 import PaletteInput from './PaletteInput'
 import PaletteList, { PaletteListItem } from './PaletteList'
 import { createEntryActions, Action } from './PaletteActions'
 import { useKeyboardNav } from '../hooks/useKeyboardNav'
 
-type PaletteMode = 'setup' | 'locked' | 'search' | 'actions'
+type PaletteMode = 'setup' | 'locked' | 'search' | 'actions' | 'add-entry'
 
 interface Entry {
   id: string
@@ -28,6 +39,14 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
   const [actions, setActions] = useState<Action[]>([])
+  const [formData, setFormData] = useState({
+    title: '',
+    username: '',
+    password: '',
+    confirmPassword: '',
+    url: '',
+    notes: ''
+  })
   const paletteRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -151,27 +170,81 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     }
   }
 
+  const handleAddEntry = async () => {
+    setError('')
+
+    if (!formData.title || !formData.username || !formData.password) {
+      setError('Title, username, and password are required')
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
+
+    try {
+      const result = await invoke('add_entry', {
+        title: formData.title,
+        username: formData.username,
+        password: formData.password,
+        url: formData.url || null,
+        notes: formData.notes || null
+      })
+      const response = JSON.parse(result as string)
+
+      if (response.status === 'success') {
+        setFormData({ title: '', username: '', password: '', confirmPassword: '', url: '', notes: '' })
+        setMode('search')
+        setError('')
+      }
+    } catch (err) {
+      setError(err as string)
+    }
+  }
+
   const handleEnterKey = () => {
     if (mode === 'setup') {
       handleSetup()
     } else if (mode === 'locked') {
       handleUnlock()
-    } else if (mode === 'search' && searchResults.length > 0) {
-      const selected = searchResults[selectedIndex]
-      if (selected) {
-        setSelectedEntry(selected)
-        const entryActions = createEntryActions(
-          selected.id,
-          selected.title,
-          handleCopyPassword,
-          handleCopyUsername,
-          handleLock,
-          () => {
-            setMode('search')
-            setSelectedEntry(null)
-          }
-        )
-        setActions(entryActions)
+    } else if (mode === 'add-entry') {
+      handleAddEntry()
+    } else if (mode === 'search') {
+      if (searchResults.length > 0) {
+        const selected = searchResults[selectedIndex]
+        if (selected) {
+          setSelectedEntry(selected)
+          const entryActions = createEntryActions(
+            selected.id,
+            selected.title,
+            handleCopyPassword,
+            handleCopyUsername,
+            handleLock,
+            () => {
+              setMode('search')
+              setSelectedEntry(null)
+            }
+          )
+          setActions(entryActions)
+          setMode('actions')
+        }
+      } else {
+        // No search results, show "Add New Entry" action
+        const addAction = {
+          id: 'add-entry',
+          title: 'Add New Password',
+          subtitle: 'Create a new password entry',
+          icon: Plus,
+          handler: () => setMode('add-entry')
+        }
+        const lockAction = {
+          id: 'lock',
+          title: 'Lock Vault',
+          icon: LogOut,
+          handler: handleLock
+        }
+        setActions([addAction, lockAction])
         setMode('actions')
       }
     } else if (mode === 'actions' && actions.length > 0) {
@@ -182,13 +255,17 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     }
   }
 
-  const handleEscape = () => {
+  const handleEscape = async () => {
     if (mode === 'actions') {
       setMode('search')
       setSelectedEntry(null)
+    } else if (mode === 'add-entry') {
+      setFormData({ title: '', username: '', password: '', confirmPassword: '', url: '', notes: '' })
+      setMode('search')
+      setError('')
     } else if (mode === 'search') {
-      setInputValue('')
-      setSearchResults([])
+      // Hide window instead of clearing input
+      await appWindow.hide()
     }
   }
 
@@ -198,7 +275,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
           id: entry.id,
           title: entry.title,
           subtitle: entry.username,
-          icon: '🔐',
+          icon: Lock,
         }))
       : mode === 'actions'
         ? actions.map((action) => ({
@@ -238,7 +315,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     onSelectedIndexChange: setSelectedIndex,
     onEnter: handleEnterKey,
     onEscape: handleEscape,
-    enabled: itemCount > 0 && (mode === 'search' || mode === 'actions'),
+    enabled: mode === 'search' || mode === 'actions' || mode === 'add-entry',
   })
 
   useEffect(() => {
@@ -268,77 +345,124 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     switch (mode) {
       case 'setup':
       case 'locked':
-        return '🔒'
+        return Lock
       case 'search':
-        return '🔍'
-      case 'actions':
-        return '⚡'
+        return Search
       default:
-        return '🔍'
+        return Search
     }
-  }
-
-  const getHint = () => {
-    if (mode === 'search' || mode === 'actions') {
-      return '⏎'
-    }
-    return undefined
   }
 
   return (
     <div className="command-palette" ref={paletteRef}>
-      <PaletteInput
-        value={inputValue}
-        onChange={setInputValue}
-        onSubmit={isPasswordMode ? (mode === 'setup' ? handleSetup : handleUnlock) : undefined}
-        placeholder={getPlaceholder()}
-        type={isPasswordMode ? 'password' : 'text'}
-        icon={getIcon()}
-        hint={getHint()}
-        autoFocus={true}
-      />
-
-      {showPasswordConfirm && (
-        <div className="palette-confirm-container">
+      {mode === 'add-entry' ? (
+        <>
           <PaletteInput
-            value={confirmPassword}
-            onChange={setConfirmPassword}
-            onSubmit={handleSetup}
-            placeholder="Confirm master password..."
-            type="password"
-            icon="🔒"
-            autoFocus={false}
+            value={formData.title}
+            onChange={(val) => setFormData({...formData, title: val})}
+            placeholder="Website title..."
+            icon={Globe}
+            autoFocus={true}
           />
-        </div>
-      )}
-
-      {error && <div className="palette-error">{error}</div>}
-
-      {showList && (
-        <PaletteList
-          items={currentItems}
-          selectedIndex={selectedIndex}
-          onSelect={(_item, index) => {
-            setSelectedIndex(index)
-            handleEnterKey()
-          }}
-        />
-      )}
-
-      {(mode === 'search' && searchResults.length > 0) || mode === 'actions' ? (
-        <div className="palette-footer">
-          {mode === 'search' && searchResults.length > 0 && (
+          <PaletteInput
+            value={formData.username}
+            onChange={(val) => setFormData({...formData, username: val})}
+            placeholder="Username or email..."
+            icon={User}
+          />
+          <PaletteInput
+            value={formData.password}
+            onChange={(val) => setFormData({...formData, password: val})}
+            placeholder="Password..."
+            type="password"
+            icon={Key}
+          />
+          <PaletteInput
+            value={formData.confirmPassword}
+            onChange={(val) => setFormData({...formData, confirmPassword: val})}
+            placeholder="Confirm password..."
+            type="password"
+            icon={Key}
+          />
+          <PaletteInput
+            value={formData.url}
+            onChange={(val) => setFormData({...formData, url: val})}
+            placeholder="URL (optional)..."
+            icon={Link}
+          />
+          <PaletteInput
+            value={formData.notes}
+            onChange={(val) => setFormData({...formData, notes: val})}
+            placeholder="Notes (optional)..."
+            icon={AlignLeft}
+          />
+          {error && <div className="palette-error">{error}</div>}
+          <div className="palette-footer">
             <span className="palette-footer-hint">
-              <kbd>↑↓</kbd> Navigate <kbd>⏎</kbd> Select <kbd>Esc</kbd> Clear
+              <kbd>Enter</kbd> Save <kbd>Esc</kbd> Cancel
             </span>
+          </div>
+        </>
+      ) : (
+        <>
+          <PaletteInput
+            value={inputValue}
+            onChange={setInputValue}
+            onSubmit={isPasswordMode ? (mode === 'setup' ? handleSetup : handleUnlock) : undefined}
+            placeholder={getPlaceholder()}
+            type={isPasswordMode ? 'password' : 'text'}
+            icon={getIcon()}
+            autoFocus={true}
+          />
+
+          {showPasswordConfirm && (
+            <div className="palette-confirm-container">
+              <PaletteInput
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                onSubmit={handleSetup}
+                placeholder="Confirm master password..."
+                type="password"
+                icon={Lock}
+                autoFocus={false}
+              />
+            </div>
           )}
-          {mode === 'actions' && (
-            <span className="palette-footer-hint">
-              <kbd>↑↓</kbd> Navigate <kbd>⏎</kbd> Execute <kbd>Esc</kbd> Back
-            </span>
+
+          {error && <div className="palette-error">{error}</div>}
+
+          {showList && (
+            <PaletteList
+              items={currentItems}
+              selectedIndex={selectedIndex}
+              onSelect={(_item, index) => {
+                setSelectedIndex(index)
+                handleEnterKey()
+              }}
+            />
           )}
-        </div>
-      ) : null}
+
+          {mode === 'search' ? (
+            <div className="palette-footer">
+              {searchResults.length > 0 ? (
+                <span className="palette-footer-hint">
+                  <kbd>↑↓</kbd> Navigate <kbd>Enter</kbd> Select <kbd>Esc</kbd> Clear
+                </span>
+              ) : (
+                <span className="palette-footer-hint">
+                  <kbd>Enter</kbd> Add New Password <kbd>Esc</kbd> Hide
+                </span>
+              )}
+            </div>
+          ) : mode === 'actions' ? (
+            <div className="palette-footer">
+              <span className="palette-footer-hint">
+                <kbd>↑↓</kbd> Navigate <kbd>Enter</kbd> Execute <kbd>Esc</kbd> Back
+              </span>
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   )
 }
