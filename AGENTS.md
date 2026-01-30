@@ -7,7 +7,7 @@ This file provides guidelines for AI agents working on Latch Password Manager co
 ### Frontend (TypeScript/React/Tauri v2)
 ```bash
 cd frontend && bun run tauri dev    # Development server (includes Rust)
-cd frontend && bun run build        # Build frontend (Vite only)
+cd frontend && bun run build        # Build frontend (Vite only), NEVER run this unless prompted otherwise.
 cd frontend && bun run typecheck    # TypeScript type check
 cd frontend/src-tauri && cargo check   # Rust compilation check
 cd frontend/src-tauri && cargo test     # Run Rust tests
