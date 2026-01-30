@@ -10,15 +10,6 @@
     "core:window:allow-set-size",
     "core:window:allow-center",
     "core:window:allow-hide",
-    "core:window:allow-show",
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "name": "binaries/vault-core",
-          "sidecar": true
-        }
-      ]
-    }
+    "core:window:allow-show"
   ]
 }
