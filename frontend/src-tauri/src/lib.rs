@@ -3,11 +3,11 @@ mod vault;
 use serde_json::json;
 use std::sync::Mutex;
 use std::thread;
-use tauri::{Manager, State};
-use tauri::tray::TrayIconBuilder;
 use tauri::menu::{MenuBuilder, MenuItem};
+use tauri::tray::TrayIconBuilder;
+use tauri::{Manager, State};
 use tauri_plugin_global_shortcut::ShortcutState;
-use vault::{Vault, EncryptedVault};
+use vault::{EncryptedVault, Vault};
 
 struct VaultState(Mutex<Vault>);
 
@@ -27,19 +27,17 @@ fn setup_system_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>>
         .menu(&menu)
         .tooltip("Latch Password Manager")
         .icon(app.default_window_icon().unwrap().clone())
-        .on_menu_event(move |app, event| {
-            match event.id.0.as_str() {
-                "show" => {
-                    if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    }
+        .on_menu_event(move |app, event| match event.id.0.as_str() {
+            "show" => {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
                 }
-                "quit" => {
-                    app.exit(0);
-                }
-                _ => {}
             }
+            "quit" => {
+                app.exit(0);
+            }
+            _ => {}
         })
         .build(app)?;
 
@@ -64,20 +62,19 @@ pub fn run() {
             app.manage(VaultState(Mutex::new(vault)));
 
             let handle = app.handle().clone();
-            app.handle()
-                .plugin(
-                    tauri_plugin_global_shortcut::Builder::new()
-                        .with_shortcut("Alt+Space")?
-                        .with_handler(move |_app, _shortcut, event| {
-                            if event.state == ShortcutState::Pressed {
-                                if let Some(window) = handle.get_webview_window("main") {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                }
+            app.handle().plugin(
+                tauri_plugin_global_shortcut::Builder::new()
+                    .with_shortcut("Alt+Space")?
+                    .with_handler(move |_app, _shortcut, event| {
+                        if event.state == ShortcutState::Pressed {
+                            if let Some(window) = handle.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
                             }
-                        })
-                        .build(),
-                )?;
+                        }
+                    })
+                    .build(),
+            )?;
 
             // Setup system tray
             if let Err(e) = setup_system_tray(app) {
@@ -143,31 +140,31 @@ async fn unlock_vault(password: String, state: State<'_, VaultState>) -> Result<
         let vault = state.0.lock().unwrap();
         let content = std::fs::read_to_string(vault.vault_path())
             .map_err(|e| format!("Failed to read vault: {}", e))?;
-        serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse vault: {}", e))?
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?
     };
 
-    let salt = hex::decode(&encrypted_vault.salt)
-        .map_err(|e| format!("Invalid salt encoding: {}", e))?;
+    let salt =
+        hex::decode(&encrypted_vault.salt).map_err(|e| format!("Invalid salt encoding: {}", e))?;
 
-    let key_result = thread::spawn(move || {
-        Vault::derive_key(&password, &salt)
-    }).join().map_err(|e| format!("Key derivation thread panicked: {:?}", e))?;
+    let key_result = thread::spawn(move || Vault::derive_key(&password, &salt))
+        .join()
+        .map_err(|e| format!("Key derivation thread panicked: {:?}", e))?;
 
     let key = key_result.map_err(|e| e)?;
 
     let encrypted_data = encrypted_vault.data;
-    let decrypted_result = thread::spawn(move || {
-        Vault::decrypt_data(&key, &encrypted_data)
-    }).join().map_err(|e| format!("Decryption thread panicked: {:?}", e))?;
+    let decrypted_result = thread::spawn(move || Vault::decrypt_data(&key, &encrypted_data))
+        .join()
+        .map_err(|e| format!("Decryption thread panicked: {:?}", e))?;
 
     let decrypted = decrypted_result.map_err(|e| e)?;
 
     let vault_data: serde_json::Value = serde_json::from_str(&decrypted)
         .map_err(|e| format!("Failed to parse vault data: {}", e))?;
 
-    let entries: Vec<vault::Entry> = serde_json::from_value(vault_data.get("entries").ok_or("Missing entries")?.clone())
-        .map_err(|e| format!("Failed to parse entries: {}", e))?;
+    let entries: Vec<vault::Entry> =
+        serde_json::from_value(vault_data.get("entries").ok_or("Missing entries")?.clone())
+            .map_err(|e| format!("Failed to parse entries: {}", e))?;
 
     let vault = &mut state.0.lock().unwrap();
     vault.set_session_key(key);
