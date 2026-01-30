@@ -23,6 +23,21 @@ cd frontend/src-tauri && cargo test vault::tests::test_name  # Run single test
 
 **Note**: Do NOT use `bun run dev` - only starts Vite without Tauri APIs. Use `bun run tauri dev`.
 
+### CI/CD Local Testing
+**Before pushing any feature, run GitHub Actions locally to ensure CI passes:**
+```bash
+act -j frontend --container-architecture linux/amd64 -P ubuntu-latest=catthehacker/ubuntu:act-latest
+act -j backend --container-architecture linux/amd64 -P ubuntu-latest=catthehacker/ubuntu:act-latest
+act --container-architecture linux/amd64 -P ubuntu-latest=catthehacker/ubuntu:act-latest
+```
+
+**Available jobs:**
+- `frontend`: TypeScript typecheck, ESLint, and Vite build
+- `backend`: Rust fmt check, compile check, tests, and clippy
+- `cargo-audit`: Security vulnerability scan (runs automatically in full workflow)
+
+**Best practice**: Run `act` before pushing to catch CI failures early and avoid round-trip debugging.
+
 ## Code Style Guidelines
 
 ### Architecture Principles
