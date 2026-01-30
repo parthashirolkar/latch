@@ -7,10 +7,9 @@ import {
   Globe,
   User,
   Key,
-  Link,
-  AlignLeft,
   Plus,
-  LogOut
+  LogOut,
+  Loader2
 } from 'lucide-react'
 import PaletteInput from './PaletteInput'
 import PaletteList, { PaletteListItem } from './PaletteList'
@@ -42,11 +41,9 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const [formData, setFormData] = useState({
     title: '',
     username: '',
-    password: '',
-    confirmPassword: '',
-    url: '',
-    notes: ''
+    password: ''
   })
+  const [isUnlocking, setIsUnlocking] = useState(false)
   const paletteRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -154,6 +151,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       return
     }
 
+    setIsUnlocking(true)
     try {
       const result = await invoke('unlock_vault', { password: inputValue })
       const response = JSON.parse(result as string)
@@ -167,6 +165,8 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       }
     } catch (err) {
       setError(err as string)
+    } finally {
+      setIsUnlocking(false)
     }
   }
 
@@ -178,23 +178,16 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       return
     }
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-
     try {
       const result = await invoke('add_entry', {
         title: formData.title,
         username: formData.username,
-        password: formData.password,
-        url: formData.url || null,
-        notes: formData.notes || null
+        password: formData.password
       })
       const response = JSON.parse(result as string)
 
       if (response.status === 'success') {
-        setFormData({ title: '', username: '', password: '', confirmPassword: '', url: '', notes: '' })
+        setFormData({ title: '', username: '', password: '' })
         setMode('search')
         setError('')
       }
@@ -260,7 +253,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       setMode('search')
       setSelectedEntry(null)
     } else if (mode === 'add-entry') {
-      setFormData({ title: '', username: '', password: '', confirmPassword: '', url: '', notes: '' })
+      setFormData({ title: '', username: '', password: '' })
       setMode('search')
       setError('')
     } else if (mode === 'search') {
@@ -342,6 +335,9 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   }
 
   const getIcon = () => {
+    if (mode === 'locked' && isUnlocking) {
+      return Loader2
+    }
     switch (mode) {
       case 'setup':
       case 'locked':
@@ -377,25 +373,6 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
             type="password"
             icon={Key}
           />
-          <PaletteInput
-            value={formData.confirmPassword}
-            onChange={(val) => setFormData({...formData, confirmPassword: val})}
-            placeholder="Confirm password..."
-            type="password"
-            icon={Key}
-          />
-          <PaletteInput
-            value={formData.url}
-            onChange={(val) => setFormData({...formData, url: val})}
-            placeholder="URL (optional)..."
-            icon={Link}
-          />
-          <PaletteInput
-            value={formData.notes}
-            onChange={(val) => setFormData({...formData, notes: val})}
-            placeholder="Notes (optional)..."
-            icon={AlignLeft}
-          />
           {error && <div className="palette-error">{error}</div>}
           <div className="palette-footer">
             <span className="palette-footer-hint">
@@ -413,6 +390,8 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
             type={isPasswordMode ? 'password' : 'text'}
             icon={getIcon()}
             autoFocus={true}
+            disabled={mode === 'locked' && isUnlocking}
+            iconSpin={mode === 'locked' && isUnlocking}
           />
 
           {showPasswordConfirm && (

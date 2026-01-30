@@ -2,7 +2,7 @@ use aes_gcm::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
     Aes256Gcm, Nonce,
 };
-use argon2::{Argon2, Algorithm, Params, Version};
+use argon2::{Algorithm, Argon2, Params, Version};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -17,10 +17,6 @@ pub struct Entry {
     pub title: String,
     pub username: String,
     pub password: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub notes: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,37 +37,35 @@ impl From<Entry> for EntryPreview {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct VaultData {
-    entries: Vec<Entry>,
+pub struct EncryptedVault {
+    pub version: String,
+    pub kdf: String,
+    pub salt: String,
+    pub data: EncryptedData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct EncryptedVault {
-    version: String,
-    kdf: String,
-    salt: String,
-    data: EncryptedData,
+pub struct EncryptedData {
+    pub nonce: String,
+    pub ciphertext: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct EncryptedData {
-    nonce: String,
-    ciphertext: String,
+pub struct VaultData {
+    pub entries: Vec<Entry>,
 }
 
 pub struct Vault {
     entries: Vec<Entry>,
-    session_key: Option<[u8; 32]>,
+    pub(crate) session_key: Option<[u8; 32]>,
     session_start: Option<SystemTime>,
-    vault_path: PathBuf,
+    pub(crate) vault_path: PathBuf,
 }
 
 impl Vault {
     pub fn new() -> Result<Self, String> {
         let vault_path = get_vault_path()?;
-        let config_dir = vault_path
-            .parent()
-            .ok_or("Invalid vault path")?;
+        let config_dir = vault_path.parent().ok_or("Invalid vault path")?;
 
         fs::create_dir_all(config_dir)
             .map_err(|e| format!("Failed to create config directory: {}", e))?;
@@ -88,8 +82,8 @@ impl Vault {
         self.vault_path.exists()
     }
 
-    fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32], String> {
-        let params = Params::new(65536, 3, 4, None)
+    pub fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32], String> {
+        let params = Params::new(32768, 2, 2, None)
             .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
 
         let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
@@ -102,7 +96,7 @@ impl Vault {
         Ok(key)
     }
 
-    fn encrypt_data(key: &[u8; 32], data: &str) -> Result<EncryptedData, String> {
+    pub fn encrypt_data(key: &[u8; 32], data: &str) -> Result<EncryptedData, String> {
         let cipher = Aes256Gcm::new(key.into());
         let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
 
@@ -116,7 +110,7 @@ impl Vault {
         })
     }
 
-    fn decrypt_data(key: &[u8; 32], encrypted_data: &EncryptedData) -> Result<String, String> {
+    pub fn decrypt_data(key: &[u8; 32], encrypted_data: &EncryptedData) -> Result<String, String> {
         let cipher = Aes256Gcm::new(key.into());
         let nonce_bytes = hex::decode(&encrypted_data.nonce)
             .map_err(|e| format!("Invalid nonce encoding: {}", e))?;
@@ -129,8 +123,7 @@ impl Vault {
             .decrypt(nonce, ciphertext.as_ref())
             .map_err(|e| format!("Decryption failed: {}", e))?;
 
-        String::from_utf8(plaintext)
-            .map_err(|e| format!("Invalid UTF-8 in decrypted data: {}", e))
+        String::from_utf8(plaintext).map_err(|e| format!("Invalid UTF-8 in decrypted data: {}", e))
     }
 
     fn check_session(&self) -> Result<(), String> {
@@ -166,7 +159,9 @@ impl Vault {
         let salt = rand::thread_rng().gen::<[u8; 16]>();
         let key = Self::derive_key(password, &salt)?;
 
-        let vault_data = VaultData { entries: Vec::new() };
+        let vault_data = VaultData {
+            entries: Vec::new(),
+        };
         let json_data = serde_json::to_string(&vault_data)
             .map_err(|e| format!("Failed to serialize vault data: {}", e))?;
 
@@ -192,30 +187,6 @@ impl Vault {
         Ok(())
     }
 
-    pub fn unlock_vault(&mut self, password: &str) -> Result<(), String> {
-        let content = fs::read_to_string(&self.vault_path)
-            .map_err(|e| format!("Failed to read vault: {}", e))?;
-
-        let vault: EncryptedVault = serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse vault: {}", e))?;
-
-        let salt = hex::decode(&vault.salt)
-            .map_err(|e| format!("Invalid salt encoding: {}", e))?;
-
-        let key = Self::derive_key(password, &salt)?;
-
-        let decrypted = Self::decrypt_data(&key, &vault.data)?;
-
-        let vault_data: VaultData = serde_json::from_str(&decrypted)
-            .map_err(|e| format!("Failed to parse vault data: {}", e))?;
-
-        self.session_key = Some(key);
-        self.session_start = Some(SystemTime::now());
-        self.entries = vault_data.entries;
-
-        Ok(())
-    }
-
     pub fn lock_vault(&mut self) {
         self.session_key = None;
         self.session_start = None;
@@ -224,6 +195,19 @@ impl Vault {
 
     pub fn is_unlocked(&self) -> bool {
         self.session_key.is_some()
+    }
+
+    pub fn vault_path(&self) -> &PathBuf {
+        &self.vault_path
+    }
+
+    pub fn set_session_key(&mut self, key: [u8; 32]) {
+        self.session_key = Some(key);
+        self.session_start = Some(SystemTime::now());
+    }
+
+    pub fn set_entries(&mut self, entries: Vec<Entry>) {
+        self.entries = entries;
     }
 
     pub fn search_entries(&mut self, query: &str) -> Result<Vec<EntryPreview>, String> {
@@ -262,8 +246,6 @@ impl Vault {
             "title" => Ok(entry.title.clone()),
             "username" => Ok(entry.username.clone()),
             "password" => Ok(entry.password.clone()),
-            "url" => entry.url.clone().ok_or("Field not found".to_string()),
-            "notes" => entry.notes.clone().ok_or("Field not found".to_string()),
             _ => Err("Field not found".to_string()),
         }
     }
@@ -277,9 +259,7 @@ impl Vault {
     }
 
     fn save_vault(&self) -> Result<(), String> {
-        let key = self
-            .session_key
-            .ok_or("Vault is locked".to_string())?;
+        let key = self.session_key.ok_or("Vault is locked".to_string())?;
 
         let vault_data = VaultData {
             entries: self.entries.clone(),
@@ -293,8 +273,8 @@ impl Vault {
         let content = fs::read_to_string(&self.vault_path)
             .map_err(|e| format!("Failed to read vault: {}", e))?;
 
-        let mut vault: EncryptedVault = serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse vault: {}", e))?;
+        let mut vault: EncryptedVault =
+            serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
 
         vault.data = encrypted_data;
 

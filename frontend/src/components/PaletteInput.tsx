@@ -10,6 +10,8 @@ interface PaletteInputProps {
   icon?: LucideIcon
   autoFocus?: boolean
   hint?: string
+  disabled?: boolean
+  iconSpin?: boolean
 }
 
 function PaletteInput({
@@ -21,6 +23,8 @@ function PaletteInput({
   icon: Icon,
   autoFocus = true,
   hint,
+  disabled = false,
+  iconSpin = false,
 }: PaletteInputProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -40,7 +44,7 @@ function PaletteInput({
   return (
     <div className="palette-input-container">
       <div className="palette-input-wrapper">
-        {Icon && <Icon className="palette-input-icon" size={20} />}
+        {Icon && <Icon className={iconSpin ? "palette-input-icon icon-spin" : "palette-input-icon"} size={20} />}
         <input
           ref={inputRef}
           type={type}
@@ -49,6 +53,7 @@ function PaletteInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className="palette-input"
+          disabled={disabled}
         />
         {hint && <span className="palette-input-hint">{hint}</span>}
       </div>
