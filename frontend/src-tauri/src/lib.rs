@@ -200,12 +200,9 @@ async fn add_entry(
     username: String,
     password: String,
     url: Option<String>,
-    iconUrl: Option<String>,
+    icon_url: Option<String>,
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
-    println!("=== RUST ADD ENTRY DEBUG ===");
-    println!("Received iconUrl: {:?}", iconUrl);
-    
     let vault = &mut state.0.lock().unwrap();
     let id = uuid::Uuid::new_v4().to_string();
 
@@ -215,10 +212,8 @@ async fn add_entry(
         username,
         password,
         url,
-        icon_url: iconUrl,
+        icon_url,
     };
-    
-    println!("Entry created with icon_url: {:?}", entry.icon_url);
 
     vault.add_entry(entry)?;
     Ok(json!({"status": "success", "id": id}).to_string())

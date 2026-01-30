@@ -220,15 +220,6 @@ impl Vault {
 
         let query_lower = query.to_lowercase();
 
-        println!("=== SEARCH DEBUG ===");
-        println!("Total entries in vault: {}", self.entries.len());
-        for (i, entry) in self.entries.iter().enumerate() {
-            println!(
-                "Entry {}: id={}, title={}, icon_url={:?}",
-                i, entry.id, entry.title, entry.icon_url
-            );
-        }
-
         let results: Vec<EntryPreview> = self
             .entries
             .iter()
@@ -239,17 +230,8 @@ impl Vault {
                     || e.username.to_lowercase().contains(&query_lower)
             })
             .cloned()
-            .map(|e| {
-                let preview: EntryPreview = e.into();
-                println!(
-                    "Mapped to preview: id={}, icon_url={:?}",
-                    preview.id, preview.icon_url
-                );
-                preview
-            })
+            .map(|e| e.into())
             .collect();
-
-        println!("Search results count: {}", results.len());
 
         Ok(results)
     }

@@ -185,44 +185,27 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     try {
       let iconUrl: string | undefined
       const url = formData.url.trim() || undefined
-      console.log('=== ADD ENTRY DEBUG ===')
-      console.log('URL provided:', url)
-      console.log('Form data:', formData)
 
       if (url) {
-        console.log('Fetching favicon for URL:', url)
         try {
           const favicon = await fetchFavicon(url)
-          console.log('Favicon fetched result:', favicon)
           if (favicon) {
             iconUrl = favicon
-            console.log('Setting iconUrl to:', iconUrl)
-          } else {
-            console.log('fetchFavicon returned null/undefined')
           }
         } catch (favError) {
           console.error('Error fetching favicon:', favError)
         }
-      } else {
-        console.log('No URL provided, skipping favicon fetch')
       }
 
-      console.log('Final iconUrl value:', iconUrl)
-      console.log('iconUrl type:', typeof iconUrl)
-      
-      // Build the invoke payload with camelCase (Tauri converts snake_case to camelCase)
       const payload = {
         title: formData.title,
         username: formData.username,
         password: formData.password,
         url: url,
-        iconUrl: iconUrl  // camelCase for Tauri
+        iconUrl: iconUrl
       }
-      console.log('Invoke payload:', JSON.stringify(payload, null, 2))
-      console.log('Sending to backend with iconUrl:', iconUrl)
       const result = await invoke('add_entry', payload)
       const response = JSON.parse(result as string)
-      console.log('Add entry response:', response)
 
       if (response.status === 'success') {
         setFormData({ title: '', username: '', password: '', url: '' })
@@ -368,6 +351,17 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       setSearchResults([])
     }
   }, [inputValue, mode])
+
+  useEffect(() => {
+    if (mode === 'search' && searchResults.length > 0 && selectedIndex >= 0) {
+      const selectedEntry = searchResults[selectedIndex]
+      if (selectedEntry) {
+        setHoveredEntryId(selectedEntry.id)
+      }
+    } else {
+      setHoveredEntryId(null)
+    }
+  }, [selectedIndex, searchResults, mode])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
