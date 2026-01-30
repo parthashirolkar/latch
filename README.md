@@ -4,10 +4,17 @@ A secure cross-platform password manager built with Tauri and Rust.
 
 ## Architecture
 
-```
-[ TypeScript / React ]  ← UI
-            ↓
-[ Rust / Tauri ]        ← Vault Service (Crypto, Storage, Auth)
+```mermaid
+graph TD
+    A[TypeScript / React] -->|UI| B[Rust / Tauri]
+    B -->|Vault Service| C[Crypto]
+    B -->|Vault Service| D[Storage]
+    B -->|Vault Service| E[Auth]
+    style A fill:#61dafb
+    style B fill:#dea584
+    style C fill:#f9f9f9
+    style D fill:#f9f9f9
+    style E fill:#f9f9f9
 ```
 
 ## Features
