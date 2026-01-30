@@ -150,14 +150,14 @@ async fn unlock_vault(password: String, state: State<'_, VaultState>) -> Result<
         .join()
         .map_err(|e| format!("Key derivation thread panicked: {:?}", e))?;
 
-    let key = key_result.map_err(|e| e)?;
+    let key = key_result?;
 
     let encrypted_data = encrypted_vault.data;
     let decrypted_result = thread::spawn(move || Vault::decrypt_data(&key, &encrypted_data))
         .join()
         .map_err(|e| format!("Decryption thread panicked: {:?}", e))?;
 
-    let decrypted = decrypted_result.map_err(|e| e)?;
+    let decrypted = decrypted_result?;
 
     let vault_data: serde_json::Value = serde_json::from_str(&decrypted)
         .map_err(|e| format!("Failed to parse vault data: {}", e))?;
