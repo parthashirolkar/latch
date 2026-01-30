@@ -17,6 +17,8 @@ pub struct Entry {
     pub title: String,
     pub username: String,
     pub password: String,
+    pub url: Option<String>,
+    pub icon_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,6 +26,7 @@ pub struct EntryPreview {
     pub id: String,
     pub title: String,
     pub username: String,
+    pub icon_url: Option<String>,
 }
 
 impl From<Entry> for EntryPreview {
@@ -32,6 +35,7 @@ impl From<Entry> for EntryPreview {
             id: entry.id,
             title: entry.title,
             username: entry.username,
+            icon_url: entry.icon_url,
         }
     }
 }
@@ -254,7 +258,31 @@ impl Vault {
         self.check_session()?;
         self.refresh_session();
 
+        println!("Vault adding entry with icon_url: {:?}", entry.icon_url);
+        println!("Current entries count before add: {}", self.entries.len());
+
         self.entries.push(entry);
+
+        println!("Current entries count after add: {}", self.entries.len());
+        println!(
+            "Last entry icon_url: {:?}",
+            self.entries.last().map(|e| &e.icon_url)
+        );
+
+        self.save_vault()
+    }
+
+    pub fn delete_entry(&mut self, entry_id: &str) -> Result<(), String> {
+        self.check_session()?;
+        self.refresh_session();
+
+        let original_len = self.entries.len();
+        self.entries.retain(|e| e.id != entry_id);
+
+        if self.entries.len() == original_len {
+            return Err("Entry not found".to_string());
+        }
+
         self.save_vault()
     }
 
