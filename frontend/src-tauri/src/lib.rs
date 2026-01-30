@@ -104,6 +104,7 @@ pub fn run() {
             lock_vault,
             vault_status,
             add_entry,
+            delete_entry,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -198,8 +199,13 @@ async fn add_entry(
     title: String,
     username: String,
     password: String,
+    url: Option<String>,
+    iconUrl: Option<String>,
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
+    println!("=== RUST ADD ENTRY DEBUG ===");
+    println!("Received iconUrl: {:?}", iconUrl);
+    
     let vault = &mut state.0.lock().unwrap();
     let id = uuid::Uuid::new_v4().to_string();
 
@@ -208,8 +214,20 @@ async fn add_entry(
         title,
         username,
         password,
+        url,
+        icon_url: iconUrl,
     };
+    
+    println!("Entry created with icon_url: {:?}", entry.icon_url);
 
     vault.add_entry(entry)?;
     Ok(json!({"status": "success", "id": id}).to_string())
+}
+
+#[tauri::command]
+async fn delete_entry(entry_id: String, state: State<'_, VaultState>) -> Result<String, String> {
+    let vault = &mut state.0.lock().unwrap();
+    vault.delete_entry(&entry_id)?;
+
+    Ok(json!({"status": "success"}).to_string())
 }
