@@ -3,6 +3,8 @@ use aes_gcm::{
     Aes256Gcm, Nonce,
 };
 use argon2::{Algorithm, Argon2, Params, Version};
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -218,20 +220,27 @@ impl Vault {
         self.check_session()?;
         self.refresh_session();
 
-        let query_lower = query.to_lowercase();
+        let matcher = SkimMatcherV2::default();
+        let mut scored_entries: Vec<(i64, EntryPreview)> = Vec::new();
 
-        let results: Vec<EntryPreview> = self
-            .entries
-            .iter()
-            .filter(|e| {
-                query_lower.is_empty()
-                    || e.title.to_lowercase().contains(&query_lower)
-                    || e.id.to_lowercase().contains(&query_lower)
-                    || e.username.to_lowercase().contains(&query_lower)
-            })
-            .cloned()
-            .map(|e| e.into())
-            .collect();
+        for entry in &self.entries {
+            if query.is_empty() {
+                scored_entries.push((0, entry.clone().into()));
+                continue;
+            }
+
+            let title_score = matcher.fuzzy_match(&entry.title, query).unwrap_or(0);
+            let username_score = matcher.fuzzy_match(&entry.username, query).unwrap_or(0);
+            let best_score = title_score.max(username_score);
+
+            if best_score >= 50 {
+                scored_entries.push((best_score, entry.clone().into()));
+            }
+        }
+
+        scored_entries.sort_by(|a, b| b.0.cmp(&a.0));
+        let results: Vec<EntryPreview> =
+            scored_entries.into_iter().map(|(_, entry)| entry).collect();
 
         Ok(results)
     }
@@ -252,6 +261,19 @@ impl Vault {
             "password" => Ok(entry.password.clone()),
             _ => Err("Field not found".to_string()),
         }
+    }
+
+    pub fn get_full_entry(&mut self, entry_id: &str) -> Result<Entry, String> {
+        self.check_session()?;
+        self.refresh_session();
+
+        let entry = self
+            .entries
+            .iter()
+            .find(|e| e.id == entry_id)
+            .ok_or("Entry not found".to_string())?;
+
+        Ok(entry.clone())
     }
 
     pub fn add_entry(&mut self, entry: Entry) -> Result<(), String> {
@@ -282,6 +304,33 @@ impl Vault {
         if self.entries.len() == original_len {
             return Err("Entry not found".to_string());
         }
+
+        self.save_vault()
+    }
+
+    pub fn update_entry(
+        &mut self,
+        id: &str,
+        title: &str,
+        username: &str,
+        password: &str,
+        url: Option<String>,
+        icon_url: Option<String>,
+    ) -> Result<(), String> {
+        self.check_session()?;
+        self.refresh_session();
+
+        let entry = self
+            .entries
+            .iter_mut()
+            .find(|e| e.id == id)
+            .ok_or("Entry not found".to_string())?;
+
+        entry.title = title.to_string();
+        entry.username = username.to_string();
+        entry.password = password.to_string();
+        entry.url = url;
+        entry.icon_url = icon_url;
 
         self.save_vault()
     }
