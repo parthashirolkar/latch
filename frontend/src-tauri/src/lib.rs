@@ -234,8 +234,8 @@ async fn get_full_entry(entry_id: String, state: State<'_, VaultState>) -> Resul
     let vault = &mut state.0.lock().unwrap();
     let entry = vault.get_full_entry(&entry_id)?;
 
-    let json_entry = serde_json::to_string(&entry)
-        .map_err(|e| format!("Failed to serialize entry: {}", e))?;
+    let json_entry =
+        serde_json::to_string(&entry).map_err(|e| format!("Failed to serialize entry: {}", e))?;
 
     Ok(json_entry)
 }
@@ -255,4 +255,3 @@ async fn update_entry(
 
     Ok(json!({"status": "success"}).to_string())
 }
-
