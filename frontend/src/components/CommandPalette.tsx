@@ -16,7 +16,7 @@ import { createEntryActions, Action } from './PaletteActions'
 import { useKeyboardNav } from '../hooks/useKeyboardNav'
 import { fetchFavicon } from '../utils/favicon'
 
-type PaletteMode = 'setup' | 'locked' | 'search' | 'actions' | 'add-entry' | 'delete-confirm'
+type PaletteMode = 'setup' | 'locked' | 'search' | 'actions' | 'add-entry' | 'edit-entry' | 'delete-confirm'
 
 interface Entry {
   id: string
@@ -47,6 +47,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const [isUnlocking, setIsUnlocking] = useState(false)
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null)
   const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
+  const [entryToEdit, setEntryToEdit] = useState<Entry | null>(null)
   const paletteRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -197,23 +198,28 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
         }
       }
 
+      const isEditing = entryToEdit !== null
       const payload = {
+        id: entryToEdit?.id,
         title: formData.title,
         username: formData.username,
         password: formData.password,
         url: url,
         iconUrl: iconUrl
       }
-      const result = await invoke('add_entry', payload)
+
+      const command = isEditing ? 'update_entry' : 'add_entry'
+      const result = await invoke(command, payload)
       const response = JSON.parse(result as string)
 
       if (response.status === 'success') {
         setFormData({ title: '', username: '', password: '', url: '' })
+        setEntryToEdit(null)
         setMode('search')
         setError('')
       }
     } catch (err) {
-      console.error('Error adding entry:', err)
+      console.error(`Error ${entryToEdit ? 'updating' : 'adding'} entry:`, err)
       setError(err as string)
     }
   }
@@ -225,7 +231,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       handleUnlock()
     } else if (mode === 'search' && searchResults.length > 0) {
       const selected = searchResults[selectedIndex]
-      setActions(createEntryActions(selected.id, selected.title, handleCopyPassword, handleCopyUsername, handleLock, onBack))
+      setActions(createEntryActions(selected.id, selected.title, handleCopyPassword, handleCopyUsername, handleEdit, handleLock, onBack))
       setMode('actions')
       setSelectedIndex(0)
     } else if (mode === 'search' && inputValue.length > 0) {
@@ -234,7 +240,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       setError('')
     } else if (mode === 'actions') {
       actions[selectedIndex].handler()
-    } else if (mode === 'add-entry') {
+    } else if (mode === 'add-entry' || mode === 'edit-entry') {
       handleAddEntry()
     } else if (mode === 'delete-confirm') {
       if (selectedIndex === 0 && entryToDelete) {
@@ -262,6 +268,32 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     }
   }
 
+  const handleEdit = async (entryId: string) => {
+    try {
+      const result = await invoke('get_full_entry', { entryId })
+      const entry = JSON.parse(result as string)
+
+      setFormData({
+        title: entry.title,
+        username: entry.username,
+        password: entry.password,
+        url: entry.url || ''
+      })
+      setEntryToEdit({
+        id: entry.id,
+        title: entry.title,
+        username: entry.username,
+        icon_url: entry.icon_url
+      })
+      setMode('edit-entry')
+      setSelectedIndex(0)
+      setError('')
+    } catch (error) {
+      console.error('Failed to load entry for editing:', error)
+      setError(error as string)
+    }
+  }
+
   const onBack = () => {
     setMode('search')
   }
@@ -269,8 +301,9 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const handleEscape = async () => {
     if (mode === 'actions') {
       setMode('search')
-    } else if (mode === 'add-entry') {
+    } else if (mode === 'add-entry' || mode === 'edit-entry') {
       setFormData({ title: '', username: '', password: '', url: '' })
+      setEntryToEdit(null)
       setMode('search')
       setError('')
     } else if (mode === 'delete-confirm') {
@@ -341,7 +374,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     onSelectedIndexChange: setSelectedIndex,
     onEnter: handleEnterKey,
     onEscape: handleEscape,
-    enabled: mode === 'search' || mode === 'actions' || mode === 'add-entry' || mode === 'delete-confirm',
+    enabled: mode === 'search' || mode === 'actions' || mode === 'add-entry' || mode === 'edit-entry' || mode === 'delete-confirm',
   })
 
   useEffect(() => {
@@ -392,6 +425,8 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
         return 'Actions...'
       case 'add-entry':
         return ''
+      case 'edit-entry':
+        return ''
       case 'delete-confirm':
         return 'Confirm deletion...'
       default:
@@ -416,38 +451,38 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
 
   return (
     <div className="command-palette" ref={paletteRef}>
-      {mode === 'add-entry' ? (
+      {mode === 'add-entry' || mode === 'edit-entry' ? (
         <>
           <PaletteInput
             value={formData.title}
             onChange={(val) => setFormData({...formData, title: val})}
-            placeholder="Website title..."
+            placeholder={mode === 'edit-entry' ? 'Edit website title...' : 'Website title...'}
             icon={Globe}
             autoFocus={true}
           />
           <PaletteInput
             value={formData.username}
             onChange={(val) => setFormData({...formData, username: val})}
-            placeholder="Username or email..."
+            placeholder={mode === 'edit-entry' ? 'Edit username or email...' : 'Username or email...'}
             icon={User}
           />
           <PaletteInput
             value={formData.password}
             onChange={(val) => setFormData({...formData, password: val})}
-            placeholder="Password..."
+            placeholder={mode === 'edit-entry' ? 'Edit password...' : 'Password...'}
             type="password"
             icon={Key}
           />
           <PaletteInput
             value={formData.url}
             onChange={(val) => setFormData({...formData, url: val})}
-            placeholder="Website URL (optional)..."
+            placeholder={mode === 'edit-entry' ? 'Edit website URL...' : 'Website URL (optional)...'}
             icon={Globe}
           />
           {error && <div className="palette-error">{error}</div>}
           <div className="palette-footer">
             <span className="palette-footer-hint">
-              <kbd>Enter</kbd> Save <kbd>Esc</kbd> Cancel
+              <kbd>Enter</kbd> {mode === 'edit-entry' ? 'Update' : 'Save'} <kbd>Esc</kbd> Cancel
             </span>
           </div>
         </>

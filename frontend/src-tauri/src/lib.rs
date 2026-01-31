@@ -105,6 +105,8 @@ pub fn run() {
             vault_status,
             add_entry,
             delete_entry,
+            get_full_entry,
+            update_entry,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -223,6 +225,33 @@ async fn add_entry(
 async fn delete_entry(entry_id: String, state: State<'_, VaultState>) -> Result<String, String> {
     let vault = &mut state.0.lock().unwrap();
     vault.delete_entry(&entry_id)?;
+
+    Ok(json!({"status": "success"}).to_string())
+}
+
+#[tauri::command]
+async fn get_full_entry(entry_id: String, state: State<'_, VaultState>) -> Result<String, String> {
+    let vault = &mut state.0.lock().unwrap();
+    let entry = vault.get_full_entry(&entry_id)?;
+
+    let json_entry =
+        serde_json::to_string(&entry).map_err(|e| format!("Failed to serialize entry: {}", e))?;
+
+    Ok(json_entry)
+}
+
+#[tauri::command]
+async fn update_entry(
+    id: String,
+    title: String,
+    username: String,
+    password: String,
+    url: Option<String>,
+    icon_url: Option<String>,
+    state: State<'_, VaultState>,
+) -> Result<String, String> {
+    let vault = &mut state.0.lock().unwrap();
+    vault.update_entry(&id, &title, &username, &password, url, icon_url)?;
 
     Ok(json!({"status": "success"}).to_string())
 }

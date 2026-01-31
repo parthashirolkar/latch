@@ -1,5 +1,5 @@
 import { LucideIcon } from 'lucide-react'
-import { Key, User, ArrowLeft, LogOut } from 'lucide-react'
+import { Key, User, ArrowLeft, LogOut, Edit } from 'lucide-react'
 
 export interface Action {
   id: string
@@ -14,6 +14,7 @@ export function createEntryActions(
   entryTitle: string,
   onCopyPassword: (id: string) => Promise<void>,
   onCopyUsername: (id: string) => Promise<void>,
+  onEdit: (id: string) => void | Promise<void>,
   onLock: () => void,
   onBack: () => void
 ): Action[] {
@@ -31,6 +32,13 @@ export function createEntryActions(
       subtitle: entryTitle,
       icon: User,
       handler: () => onCopyUsername(entryId),
+    },
+    {
+      id: 'edit',
+      title: 'Edit Entry',
+      subtitle: entryTitle,
+      icon: Edit,
+      handler: () => onEdit(entryId),
     },
     {
       id: 'back',
