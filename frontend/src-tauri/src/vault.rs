@@ -11,6 +11,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
+use crate::oauth::derive_key_from_oauth;
+
 const SESSION_TIMEOUT_SECS: u64 = 30 * 60;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -362,6 +364,136 @@ impl Vault {
             .map_err(|e| format!("Failed to write vault: {}", e))?;
 
         Ok(())
+    }
+
+    pub fn init_with_oauth(&mut self, user_id: &str) -> Result<(), String> {
+        if self.vault_exists() {
+            return Err("Vault already exists".to_string());
+        }
+
+        let key = derive_key_from_oauth(user_id)?;
+
+        let vault_data = VaultData {
+            entries: Vec::new(),
+        };
+        let json_data = serde_json::to_string(&vault_data)
+            .map_err(|e| format!("Failed to serialize vault data: {}", e))?;
+
+        let encrypted_data = Self::encrypt_data(&key, &json_data)?;
+
+        let vault = EncryptedVault {
+            version: "1".to_string(),
+            kdf: "oauth-pbkdf2".to_string(),
+            salt: user_id.to_string(),
+            data: encrypted_data,
+        };
+
+        let json_vault = serde_json::to_string_pretty(&vault)
+            .map_err(|e| format!("Failed to serialize vault: {}", e))?;
+
+        fs::write(&self.vault_path, json_vault)
+            .map_err(|e| format!("Failed to write vault: {}", e))?;
+
+        self.session_key = Some(key);
+        self.session_start = Some(SystemTime::now());
+        self.entries = Vec::new();
+
+        Ok(())
+    }
+
+    pub fn unlock_with_oauth(&mut self, user_id: &str) -> Result<(), String> {
+        if !self.vault_exists() {
+            return Err("Vault does not exist".to_string());
+        }
+
+        let content = fs::read_to_string(&self.vault_path)
+            .map_err(|e| format!("Failed to read vault: {}", e))?;
+
+        let vault: EncryptedVault =
+            serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
+
+        if vault.kdf != "oauth-pbkdf2" {
+            return Err("Vault was created with password auth. Use migration first.".to_string());
+        }
+
+        if vault.salt != user_id {
+            return Err("Wrong user account".to_string());
+        }
+
+        let key = derive_key_from_oauth(user_id)?;
+
+        let decrypted = Self::decrypt_data(&key, &vault.data)?;
+
+        let vault_data: VaultData = serde_json::from_str(&decrypted)
+            .map_err(|e| format!("Failed to parse vault data: {}", e))?;
+
+        self.session_key = Some(key);
+        self.session_start = Some(SystemTime::now());
+        self.entries = vault_data.entries;
+
+        Ok(())
+    }
+
+    pub fn migrate_to_oauth(&mut self, password: &str, user_id: &str) -> Result<(), String> {
+        if !self.vault_exists() {
+            return Err("Vault does not exist".to_string());
+        }
+
+        let content = fs::read_to_string(&self.vault_path)
+            .map_err(|e| format!("Failed to read vault: {}", e))?;
+
+        let vault: EncryptedVault =
+            serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
+
+        if vault.kdf == "oauth-pbkdf2" {
+            return Err("Vault already migrated to OAuth".to_string());
+        }
+
+        let salt = hex::decode(&vault.salt).map_err(|e| format!("Invalid salt encoding: {}", e))?;
+
+        let old_key = Self::derive_key(password, &salt)?;
+
+        let decrypted = Self::decrypt_data(&old_key, &vault.data)?;
+
+        let vault_data: VaultData = serde_json::from_str(&decrypted)
+            .map_err(|e| format!("Failed to parse vault data: {}", e))?;
+
+        let new_key = derive_key_from_oauth(user_id)?;
+
+        let encrypted_data = Self::encrypt_data(&new_key, &decrypted)?;
+
+        let new_vault = EncryptedVault {
+            version: "1".to_string(),
+            kdf: "oauth-pbkdf2".to_string(),
+            salt: user_id.to_string(),
+            data: encrypted_data,
+        };
+
+        let json_vault = serde_json::to_string_pretty(&new_vault)
+            .map_err(|e| format!("Failed to serialize vault: {}", e))?;
+
+        fs::write(&self.vault_path, json_vault)
+            .map_err(|e| format!("Failed to write vault: {}", e))?;
+
+        self.session_key = Some(new_key);
+        self.session_start = Some(SystemTime::now());
+        self.entries = vault_data.entries;
+
+        Ok(())
+    }
+
+    pub fn requires_migration(&self) -> Result<bool, String> {
+        if !self.vault_exists() {
+            return Ok(false);
+        }
+
+        let content = fs::read_to_string(&self.vault_path)
+            .map_err(|e| format!("Failed to read vault: {}", e))?;
+
+        let vault: EncryptedVault =
+            serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
+
+        Ok(vault.kdf != "oauth-pbkdf2")
     }
 }
 

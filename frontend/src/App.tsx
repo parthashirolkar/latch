@@ -10,6 +10,7 @@ interface VaultStatus {
 function App() {
   const [hasVault, setHasVault] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(false)
+  const [requiresMigration, setRequiresMigration] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -23,6 +24,12 @@ function App() {
       const status = JSON.parse(result as string) as VaultStatus
       setHasVault(status.has_vault)
       setIsUnlocked(status.is_unlocked)
+      
+      if (status.has_vault) {
+        const migrationResult = await invoke('vault_requires_migration')
+        const migrationStatus = JSON.parse(migrationResult as string)
+        setRequiresMigration(migrationStatus.requires_migration)
+      }
     } catch (error) {
       console.error('Failed to check vault status:', error)
     } finally {
@@ -40,7 +47,11 @@ function App() {
     )
   }
 
-  const initialMode = !hasVault ? 'setup' : !isUnlocked ? 'locked' : 'search'
+  const initialMode = !hasVault 
+    ? 'oauth-setup' 
+    : !isUnlocked 
+      ? (requiresMigration ? 'migrate' : 'oauth-login')
+      : 'search'
 
   return (
     <div className="app-container">
