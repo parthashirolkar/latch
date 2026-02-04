@@ -1,5 +1,7 @@
+mod oauth;
 mod vault;
 
+use oauth::get_user_id_from_token;
 use serde_json::json;
 use std::sync::Mutex;
 use std::thread;
@@ -48,6 +50,7 @@ fn setup_system_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>>
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_google_auth::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -107,6 +110,10 @@ pub fn run() {
             delete_entry,
             get_full_entry,
             update_entry,
+            init_vault_oauth,
+            unlock_vault_oauth,
+            migrate_to_oauth,
+            vault_requires_migration,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -254,4 +261,55 @@ async fn update_entry(
     vault.update_entry(&id, &title, &username, &password, url, icon_url)?;
 
     Ok(json!({"status": "success"}).to_string())
+}
+
+#[tauri::command]
+async fn init_vault_oauth(
+    id_token: String,
+    state: State<'_, VaultState>,
+) -> Result<String, String> {
+    let user_id =
+        get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
+
+    let vault = &mut state.0.lock().unwrap();
+    vault.init_with_oauth(&user_id)?;
+
+    Ok(json!({"status": "success"}).to_string())
+}
+
+#[tauri::command]
+async fn unlock_vault_oauth(
+    id_token: String,
+    state: State<'_, VaultState>,
+) -> Result<String, String> {
+    let user_id =
+        get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
+
+    let vault = &mut state.0.lock().unwrap();
+    vault.unlock_with_oauth(&user_id)?;
+
+    Ok(json!({"status": "success"}).to_string())
+}
+
+#[tauri::command]
+async fn migrate_to_oauth(
+    password: String,
+    id_token: String,
+    state: State<'_, VaultState>,
+) -> Result<String, String> {
+    let user_id =
+        get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
+
+    let vault = &mut state.0.lock().unwrap();
+    vault.migrate_to_oauth(&password, &user_id)?;
+
+    Ok(json!({"status": "success"}).to_string())
+}
+
+#[tauri::command]
+async fn vault_requires_migration(state: State<'_, VaultState>) -> Result<String, String> {
+    let vault = state.0.lock().unwrap();
+    let requires = vault.requires_migration()?;
+
+    Ok(json!({"requires_migration": requires}).to_string())
 }

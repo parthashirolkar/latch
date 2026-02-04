@@ -15,8 +15,10 @@ import PaletteList, { PaletteListItem } from './PaletteList'
 import { createEntryActions, Action } from './PaletteActions'
 import { useKeyboardNav } from '../hooks/useKeyboardNav'
 import { fetchFavicon } from '../utils/favicon'
+import OAuthSignIn from './OAuthSignIn'
+import MigrateVault from './MigrateVault'
 
-type PaletteMode = 'setup' | 'locked' | 'search' | 'actions' | 'add-entry' | 'edit-entry' | 'delete-confirm'
+type PaletteMode = 'setup' | 'locked' | 'search' | 'actions' | 'add-entry' | 'edit-entry' | 'delete-confirm' | 'oauth-setup' | 'oauth-login' | 'migrate'
 
 interface Entry {
   id: string
@@ -69,7 +71,11 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
         setSearchResults(entries)
       } else if (entries.status === 'error') {
         console.error('Search failed:', entries.message)
-        setMode('locked')
+        if (entries.message?.includes('locked')) {
+          const migrationResult = await invoke('vault_requires_migration')
+          const migrationStatus = JSON.parse(migrationResult as string)
+          setMode(migrationStatus.requires_migration ? 'migrate' : 'oauth-login')
+        }
       }
     } catch (error) {
       console.error('Search failed:', error)
@@ -90,7 +96,9 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       } else if (response.status === 'error') {
         console.error('Failed to copy password:', response.message)
         if (response.message.includes('locked')) {
-          setMode('locked')
+          const migrationResult = await invoke('vault_requires_migration')
+          const migrationStatus = JSON.parse(migrationResult as string)
+          setMode(migrationStatus.requires_migration ? 'migrate' : 'oauth-login')
         }
       }
     } catch (error) {
@@ -111,7 +119,10 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const handleLock = async () => {
     try {
       await invoke('lock_vault')
-      setMode('locked')
+      // Check if vault needs migration to determine correct unlock mode
+      const migrationResult = await invoke('vault_requires_migration')
+      const migrationStatus = JSON.parse(migrationResult as string)
+      setMode(migrationStatus.requires_migration ? 'migrate' : 'oauth-login')
       setInputValue('')
       setConfirmPassword('')
       setSearchResults([])
@@ -449,6 +460,16 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     }
   }
 
+  const handleOAuthSuccess = () => {
+    setMode('search')
+    setInputValue('')
+    setError('')
+  }
+
+  const handleOAuthError = (errorMsg: string) => {
+    setError(errorMsg)
+  }
+
   return (
     <div className="command-palette" ref={paletteRef}>
       {mode === 'add-entry' || mode === 'edit-entry' ? (
@@ -486,6 +507,12 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
             </span>
           </div>
         </>
+      ) : mode === 'oauth-setup' ? (
+        <OAuthSignIn mode="setup" onSuccess={handleOAuthSuccess} onError={handleOAuthError} />
+      ) : mode === 'oauth-login' ? (
+        <OAuthSignIn mode="login" onSuccess={handleOAuthSuccess} onError={handleOAuthError} />
+      ) : mode === 'migrate' ? (
+        <MigrateVault onSuccess={handleOAuthSuccess} onError={handleOAuthError} />
       ) : (
         <>
           <PaletteInput
