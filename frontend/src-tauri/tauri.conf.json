@@ -28,6 +28,13 @@
       "csp": null
     }
   },
+  "plugins": {
+    "biometric": {
+      "i18n": {
+        "allowed": true
+      }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

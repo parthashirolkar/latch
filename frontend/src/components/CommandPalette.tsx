@@ -17,8 +17,9 @@ import { useKeyboardNav } from '../hooks/useKeyboardNav'
 import { fetchFavicon } from '../utils/favicon'
 import OAuthSignIn from './OAuthSignIn'
 import MigrateVault from './MigrateVault'
+import Settings from './Settings'
 
-type PaletteMode = 'setup' | 'locked' | 'search' | 'actions' | 'add-entry' | 'edit-entry' | 'delete-confirm' | 'oauth-setup' | 'oauth-login' | 'migrate'
+type PaletteMode = 'setup' | 'locked' | 'search' | 'actions' | 'add-entry' | 'edit-entry' | 'delete-confirm' | 'oauth-setup' | 'oauth-login' | 'migrate' | 'settings'
 
 interface Entry {
   id: string
@@ -50,6 +51,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null)
   const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
   const [entryToEdit, setEntryToEdit] = useState<Entry | null>(null)
+  const [biometricEnabled, setBiometricEnabled] = useState(false)
   const paletteRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -119,10 +121,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const handleLock = async () => {
     try {
       await invoke('lock_vault')
-      // Check if vault needs migration to determine correct unlock mode
-      const migrationResult = await invoke('vault_requires_migration')
-      const migrationStatus = JSON.parse(migrationResult as string)
-      setMode(migrationStatus.requires_migration ? 'migrate' : 'oauth-login')
+      setMode('oauth-login')
       setInputValue('')
       setConfirmPassword('')
       setSearchResults([])
@@ -320,6 +319,8 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     } else if (mode === 'delete-confirm') {
       setMode('search')
       setEntryToDelete(null)
+    } else if (mode === 'settings') {
+      setMode('search')
     } else if (mode === 'search' && inputValue.length > 0) {
       setInputValue('')
     } else if (mode === 'search') {
@@ -379,6 +380,15 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     resizeWindow()
   }, [resizeWindow, mode, itemCount, error, showPasswordConfirm, showList])
 
+  useEffect(() => {
+    if (mode === 'settings') {
+      const timer = setTimeout(() => {
+        resizeWindow()
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [mode, resizeWindow])
+
   useKeyboardNav({
     itemCount,
     selectedIndex,
@@ -417,12 +427,37 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
           setMode('delete-confirm')
           setSelectedIndex(0)
         }
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'l' && mode === 'search') {
+        e.preventDefault()
+        handleLock()
+      } else if (e.key === ',' && mode === 'search') {
+        e.preventDefault()
+        setMode('settings')
+      } else if (e.key === 'Escape' && mode === 'settings') {
+        e.preventDefault()
+        setMode('search')
+        setInputValue('')
+        setSearchResults([])
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [hoveredEntryId, mode, searchResults])
+
+  useEffect(() => {
+    const checkBiometricStatus = async () => {
+      try {
+        const prefsResult = await invoke('get_auth_preferences')
+        const prefs = JSON.parse(prefsResult as string)
+        setBiometricEnabled(prefs.biometric_enabled)
+      } catch (error) {
+        console.error('Failed to check biometric status:', error)
+      }
+    }
+
+    checkBiometricStatus()
+  }, [mode])
 
   const getPlaceholder = () => {
     switch (mode) {
@@ -507,12 +542,14 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
             </span>
           </div>
         </>
-      ) : mode === 'oauth-setup' ? (
+       ) : mode === 'oauth-setup' ? (
         <OAuthSignIn mode="setup" onSuccess={handleOAuthSuccess} onError={handleOAuthError} />
-      ) : mode === 'oauth-login' ? (
-        <OAuthSignIn mode="login" onSuccess={handleOAuthSuccess} onError={handleOAuthError} />
+       ) : mode === 'oauth-login' ? (
+        <OAuthSignIn mode="login" onSuccess={handleOAuthSuccess} onError={handleOAuthError} biometricEnabled={biometricEnabled} />
       ) : mode === 'migrate' ? (
         <MigrateVault onSuccess={handleOAuthSuccess} onError={handleOAuthError} />
+      ) : mode === 'settings' ? (
+        <Settings />
       ) : (
         <>
           <PaletteInput
@@ -559,11 +596,11 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
             <div className="palette-footer">
               {searchResults.length > 0 ? (
                 <span className="palette-footer-hint">
-                  <kbd>↑↓</kbd> Navigate <kbd>Enter</kbd> Select <kbd>Shift+Backspace</kbd> Delete <kbd>Esc</kbd> Clear
+                  <kbd>↑↓</kbd> Navigate <kbd>Enter</kbd> Select <kbd>Shift+Backspace</kbd> Delete <kbd>Esc</kbd> Clear <kbd>,</kbd> Settings
                 </span>
               ) : (
                 <span className="palette-footer-hint">
-                  <kbd>Enter</kbd> Add New Password <kbd>Esc</kbd> Hide
+                  <kbd>Enter</kbd> Add New Password <kbd>Esc</kbd> Hide <kbd>,</kbd> Settings
                 </span>
               )}
             </div>

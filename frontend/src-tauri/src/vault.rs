@@ -2,14 +2,10 @@ use aes_gcm::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
     Aes256Gcm, Nonce,
 };
-use argon2::{Algorithm, Argon2, Params, Version};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
-use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
-use std::time::SystemTime;
+use std::{fs, path::PathBuf, time::SystemTime};
 
 use crate::oauth::derive_key_from_oauth;
 
@@ -66,7 +62,7 @@ pub struct VaultData {
 pub struct Vault {
     entries: Vec<Entry>,
     pub(crate) session_key: Option<[u8; 32]>,
-    session_start: Option<SystemTime>,
+    pub(crate) session_start: Option<SystemTime>,
     pub(crate) vault_path: PathBuf,
 }
 
@@ -88,20 +84,6 @@ impl Vault {
 
     pub fn vault_exists(&self) -> bool {
         self.vault_path.exists()
-    }
-
-    pub fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32], String> {
-        let params = Params::new(32768, 2, 2, None)
-            .map_err(|e| format!("Failed to create Argon2 params: {}", e))?;
-
-        let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-
-        let mut key = [0u8; 32];
-        argon2
-            .hash_password_into(password.as_bytes(), salt, &mut key)
-            .map_err(|e| format!("Key derivation failed: {}", e))?;
-
-        Ok(key)
     }
 
     pub fn encrypt_data(key: &[u8; 32], data: &str) -> Result<EncryptedData, String> {
@@ -158,43 +140,6 @@ impl Vault {
     fn refresh_session(&mut self) {
         self.session_start = Some(SystemTime::now());
     }
-
-    pub fn init_vault(&mut self, password: &str) -> Result<(), String> {
-        if self.vault_exists() {
-            return Err("Vault already exists".to_string());
-        }
-
-        let salt = rand::thread_rng().gen::<[u8; 16]>();
-        let key = Self::derive_key(password, &salt)?;
-
-        let vault_data = VaultData {
-            entries: Vec::new(),
-        };
-        let json_data = serde_json::to_string(&vault_data)
-            .map_err(|e| format!("Failed to serialize vault data: {}", e))?;
-
-        let encrypted_data = Self::encrypt_data(&key, &json_data)?;
-
-        let vault = EncryptedVault {
-            version: "1".to_string(),
-            kdf: "argon2id".to_string(),
-            salt: hex::encode(salt),
-            data: encrypted_data,
-        };
-
-        let json_vault = serde_json::to_string_pretty(&vault)
-            .map_err(|e| format!("Failed to serialize vault: {}", e))?;
-
-        fs::write(&self.vault_path, json_vault)
-            .map_err(|e| format!("Failed to write vault: {}", e))?;
-
-        self.session_key = Some(key);
-        self.session_start = Some(SystemTime::now());
-        self.entries = Vec::new();
-
-        Ok(())
-    }
-
     pub fn lock_vault(&mut self) {
         self.session_key = None;
         self.session_start = None;
@@ -203,19 +148,6 @@ impl Vault {
 
     pub fn is_unlocked(&self) -> bool {
         self.session_key.is_some()
-    }
-
-    pub fn vault_path(&self) -> &PathBuf {
-        &self.vault_path
-    }
-
-    pub fn set_session_key(&mut self, key: [u8; 32]) {
-        self.session_key = Some(key);
-        self.session_start = Some(SystemTime::now());
-    }
-
-    pub fn set_entries(&mut self, entries: Vec<Entry>) {
-        self.entries = entries;
     }
 
     pub fn search_entries(&mut self, query: &str) -> Result<Vec<EntryPreview>, String> {
@@ -265,35 +197,37 @@ impl Vault {
         }
     }
 
-    pub fn get_full_entry(&mut self, entry_id: &str) -> Result<Entry, String> {
-        self.check_session()?;
-        self.refresh_session();
-
-        let entry = self
-            .entries
-            .iter()
-            .find(|e| e.id == entry_id)
-            .ok_or("Entry not found".to_string())?;
-
-        Ok(entry.clone())
+    pub fn add_entry(&mut self, entry: Entry) -> Result<(), String> {
+        if !self.is_unlocked() {
+            return Err("Vault is locked".to_string());
+        }
+        self.entries.push(entry);
+        Ok(())
     }
 
-    pub fn add_entry(&mut self, entry: Entry) -> Result<(), String> {
-        self.check_session()?;
-        self.refresh_session();
+    pub fn get_full_entry(&self, entry_id: &str) -> Result<Entry, String> {
+        if !self.is_unlocked() {
+            return Err("Vault is locked".to_string());
+        }
+        self.entries
+            .iter()
+            .find(|e| e.id == entry_id)
+            .cloned()
+            .ok_or_else(|| format!("Entry '{}' not found", entry_id))
+    }
 
-        println!("Vault adding entry with icon_url: {:?}", entry.icon_url);
-        println!("Current entries count before add: {}", self.entries.len());
+    pub fn update_entry(&mut self, entry: Entry) -> Result<(), String> {
+        if !self.is_unlocked() {
+            return Err("Vault is locked".to_string());
+        }
+        let index = self
+            .entries
+            .iter()
+            .position(|e| e.id == entry.id)
+            .ok_or_else(|| format!("Entry '{}' not found", entry.id))?;
 
-        self.entries.push(entry);
-
-        println!("Current entries count after add: {}", self.entries.len());
-        println!(
-            "Last entry icon_url: {:?}",
-            self.entries.last().map(|e| &e.icon_url)
-        );
-
-        self.save_vault()
+        self.entries[index] = entry;
+        Ok(())
     }
 
     pub fn delete_entry(&mut self, entry_id: &str) -> Result<(), String> {
@@ -307,34 +241,8 @@ impl Vault {
             return Err("Entry not found".to_string());
         }
 
-        self.save_vault()
-    }
-
-    pub fn update_entry(
-        &mut self,
-        id: &str,
-        title: &str,
-        username: &str,
-        password: &str,
-        url: Option<String>,
-        icon_url: Option<String>,
-    ) -> Result<(), String> {
-        self.check_session()?;
-        self.refresh_session();
-
-        let entry = self
-            .entries
-            .iter_mut()
-            .find(|e| e.id == id)
-            .ok_or("Entry not found".to_string())?;
-
-        entry.title = title.to_string();
-        entry.username = username.to_string();
-        entry.password = password.to_string();
-        entry.url = url;
-        entry.icon_url = icon_url;
-
-        self.save_vault()
+        self.save_vault()?;
+        Ok(())
     }
 
     fn save_vault(&self) -> Result<(), String> {
@@ -434,7 +342,11 @@ impl Vault {
         Ok(())
     }
 
-    pub fn migrate_to_oauth(&mut self, password: &str, user_id: &str) -> Result<(), String> {
+    pub fn get_encryption_key(&self) -> Result<[u8; 32], String> {
+        self.session_key.ok_or("Vault is not unlocked".to_string())
+    }
+
+    pub fn unlock_with_key(&mut self, key: &[u8; 32]) -> Result<(), String> {
         if !self.vault_exists() {
             return Err("Vault does not exist".to_string());
         }
@@ -445,55 +357,20 @@ impl Vault {
         let vault: EncryptedVault =
             serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
 
-        if vault.kdf == "oauth-pbkdf2" {
-            return Err("Vault already migrated to OAuth".to_string());
+        if vault.kdf != "oauth-pbkdf2" {
+            return Err("Vault was created with password auth. Use migration first.".to_string());
         }
 
-        let salt = hex::decode(&vault.salt).map_err(|e| format!("Invalid salt encoding: {}", e))?;
-
-        let old_key = Self::derive_key(password, &salt)?;
-
-        let decrypted = Self::decrypt_data(&old_key, &vault.data)?;
+        let decrypted = Self::decrypt_data(key, &vault.data)?;
 
         let vault_data: VaultData = serde_json::from_str(&decrypted)
             .map_err(|e| format!("Failed to parse vault data: {}", e))?;
 
-        let new_key = derive_key_from_oauth(user_id)?;
-
-        let encrypted_data = Self::encrypt_data(&new_key, &decrypted)?;
-
-        let new_vault = EncryptedVault {
-            version: "1".to_string(),
-            kdf: "oauth-pbkdf2".to_string(),
-            salt: user_id.to_string(),
-            data: encrypted_data,
-        };
-
-        let json_vault = serde_json::to_string_pretty(&new_vault)
-            .map_err(|e| format!("Failed to serialize vault: {}", e))?;
-
-        fs::write(&self.vault_path, json_vault)
-            .map_err(|e| format!("Failed to write vault: {}", e))?;
-
-        self.session_key = Some(new_key);
+        self.session_key = Some(*key);
         self.session_start = Some(SystemTime::now());
         self.entries = vault_data.entries;
 
         Ok(())
-    }
-
-    pub fn requires_migration(&self) -> Result<bool, String> {
-        if !self.vault_exists() {
-            return Ok(false);
-        }
-
-        let content = fs::read_to_string(&self.vault_path)
-            .map_err(|e| format!("Failed to read vault: {}", e))?;
-
-        let vault: EncryptedVault =
-            serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
-
-        Ok(vault.kdf != "oauth-pbkdf2")
     }
 }
 
