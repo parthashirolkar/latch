@@ -63,7 +63,7 @@ pub fn run() {
 
             let vault = Vault::new().expect("Failed to initialize vault");
             app.manage(VaultState(Mutex::new(vault)));
-            app        .manage(Mutex::new(biometric::BiometricState { vault_key: None }));
+            app.manage(Mutex::new(biometric::BiometricState { vault_key: None }));
 
             let handle = app.handle().clone();
             app.handle().plugin(
@@ -142,12 +142,8 @@ async fn request_secret(
     Ok(json!({"status": "success", "value": secret}).to_string())
 }
 
-
-
 #[tauri::command]
-async fn lock_vault(
-    state: State<'_, VaultState>
-) -> Result<String, String> {
+async fn lock_vault(state: State<'_, VaultState>) -> Result<String, String> {
     let vault = &mut state.0.lock().unwrap();
     vault.lock_vault();
 
@@ -197,10 +193,7 @@ async fn delete_entry(entry_id: String, state: State<'_, VaultState>) -> Result<
 }
 
 #[tauri::command]
-async fn get_full_entry(
-    entry_id: String,
-    state: State<'_, VaultState>
-) -> Result<String, String> {
+async fn get_full_entry(entry_id: String, state: State<'_, VaultState>) -> Result<String, String> {
     let vault = state.0.lock().unwrap();
     let entry = vault.get_full_entry(&entry_id)?;
 
@@ -214,7 +207,7 @@ async fn update_entry(
     username: String,
     password: String,
     url: Option<String>,
-    state: State<'_, VaultState>
+    state: State<'_, VaultState>,
 ) -> Result<String, String> {
     let vault = &mut state.0.lock().unwrap();
 
@@ -231,7 +224,6 @@ async fn update_entry(
 
     Ok(json!({"status": "success"}).to_string())
 }
-
 
 #[tauri::command]
 async fn init_vault_oauth(
@@ -261,84 +253,87 @@ async fn unlock_vault_oauth(
     Ok(json!({"status": "success"}).to_string())
 }
 
-
 #[tauri::command]
 async fn enable_biometric_unlock(
     state: State<'_, VaultState>,
-    biometric_state: State<'_, Mutex<biometric::BiometricState>>
+    biometric_state: State<'_, Mutex<biometric::BiometricState>>,
 ) -> Result<String, String> {
     let vault = &mut state.0.lock().unwrap();
     let mut bio_state = biometric_state.inner().lock().unwrap();
-    
+
     biometric::enable_biometric_unlock(vault, &mut bio_state)?;
-    
+
     Ok(json!({"status": "success"}).to_string())
 }
 
 #[tauri::command]
 async fn unlock_with_biometric_key(
     state: State<'_, VaultState>,
-    biometric_state: State<'_, Mutex<biometric::BiometricState>>
+    biometric_state: State<'_, Mutex<biometric::BiometricState>>,
 ) -> Result<String, String> {
     let bio_state = biometric_state.inner().lock().unwrap();
-    let key = bio_state.vault_key.ok_or("Biometric not enabled".to_string())?;
+    let key = bio_state
+        .vault_key
+        .ok_or("Biometric not enabled".to_string())?;
     drop(bio_state);
-    
+
     let vault = &mut state.0.lock().unwrap();
     biometric::unlock_with_biometric_key(&key, vault)?;
-    
+
     Ok(json!({"status": "success"}).to_string())
 }
 
 #[tauri::command]
 async fn is_biometric_enabled(
-    biometric_state: State<'_, Mutex<biometric::BiometricState>>
+    biometric_state: State<'_, Mutex<biometric::BiometricState>>,
 ) -> Result<String, String> {
     let bio_state = biometric_state.inner().lock().unwrap();
     let enabled = biometric::is_biometric_enabled(&bio_state);
-    
+
     Ok(json!({
         "status": "success",
         "enabled": enabled
-    }).to_string())
+    })
+    .to_string())
 }
 
 #[tauri::command]
 async fn disable_biometric_unlock(
-    biometric_state: State<'_, Mutex<biometric::BiometricState>>
+    biometric_state: State<'_, Mutex<biometric::BiometricState>>,
 ) -> Result<String, String> {
     let mut bio_state = biometric_state.inner().lock().unwrap();
     biometric::disable_biometric_unlock(&mut bio_state);
-    
+
     Ok(json!({"status": "success"}).to_string())
 }
 
 #[tauri::command]
 async fn get_auth_preferences(
     state: State<'_, VaultState>,
-    biometric_state: State<'_, Mutex<biometric::BiometricState>>
+    biometric_state: State<'_, Mutex<biometric::BiometricState>>,
 ) -> Result<String, String> {
     let bio_state = biometric_state.inner().lock().unwrap();
     let enabled = biometric::is_biometric_enabled(&bio_state);
     drop(bio_state);
-    
+
     let vault = state.0.lock().unwrap();
     let is_unlocked = vault.is_unlocked();
-    
+
     let session_remaining = if is_unlocked {
         vault
             .session_start
             .and_then(|start| start.elapsed().ok())
-            .map(|e| (30 * 60 - e.as_secs()).max(0))
+            .map(|e| 30 * 60 - e.as_secs())
             .unwrap_or(0)
     } else {
         0
     };
-    
+
     Ok(json!({
         "status": "success",
         "biometric_enabled": enabled,
         "session_valid": is_unlocked,
         "session_remaining_seconds": session_remaining
-    }).to_string())
+    })
+    .to_string())
 }
