@@ -330,7 +330,7 @@ body {
 }
 
 .oauth-button.biometric-button {
-  background: var(--accent);
+  background: var(--accent-primary);
   color: var(--bg-primary);
 }
 

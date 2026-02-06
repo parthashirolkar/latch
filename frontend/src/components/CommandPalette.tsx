@@ -74,9 +74,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       } else if (entries.status === 'error') {
         console.error('Search failed:', entries.message)
         if (entries.message?.includes('locked')) {
-          const migrationResult = await invoke('vault_requires_migration')
-          const migrationStatus = JSON.parse(migrationResult as string)
-          setMode(migrationStatus.requires_migration ? 'migrate' : 'oauth-login')
+          setMode('oauth-login')
         }
       }
     } catch (error) {
@@ -98,9 +96,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       } else if (response.status === 'error') {
         console.error('Failed to copy password:', response.message)
         if (response.message.includes('locked')) {
-          const migrationResult = await invoke('vault_requires_migration')
-          const migrationStatus = JSON.parse(migrationResult as string)
-          setMode(migrationStatus.requires_migration ? 'migrate' : 'oauth-login')
+          setMode('oauth-login')
         }
       }
     } catch (error) {
