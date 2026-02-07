@@ -44,9 +44,10 @@ act --container-architecture linux/amd64 -P ubuntu-latest=catthehacker/ubuntu:ac
 
 1. **Strict Layer Separation**: Frontend=UI, Rust backend=crypto/storage/auth
 2. **Tauri State Pattern**: Vault instance stored in `VaultState(Mutex<Vault>)`, shared via Tauri State
-3. **Master Password Security**: Password never stored, only used for key derivation via Argon2id KDF
-4. **Session-Only Keys**: Decrypted vault key lives in memory only, cleared on lock or 30min timeout
-5. **Command Palette UI**: Raycast-style single-window interface with mode-based navigation
+3. **Auth Method Flexibility**: Support multiple auth methods (OAuth, Biometric) with method switching
+4. **Master Password Security**: For biometric vaults, key stored in OS keychain (Windows Credential Manager/macOS Keychain); for OAuth, derived from Google user_id
+5. **Session-Only Keys**: Decrypted vault key lives in memory only, cleared on lock or 30min timeout
+6. **Command Palette UI**: Raycast-style single-window interface with mode-based navigation
 
 ### TypeScript/React
 
@@ -114,7 +115,7 @@ async fn command_name(param: String, state: State<'_, VaultState>) -> Result<Str
 ### Command Palette Pattern
 The app uses a Raycast-style single-window command palette interface with mode-based navigation:
 
-- **Main Component**: `CommandPalette` with modes: `setup`, `locked`, `search`, `actions`, `add-entry`
+- **Main Component**: `CommandPalette` with modes: `auth-selector`, `oauth-login`, `biometric-login`, `biometric-setup`, `search`, `actions`, `add-entry`
 - **Sub-Components**:
   - `PaletteInput`: Reusable input field with icon support
   - `PaletteList`: Scrollable list with keyboard navigation
@@ -138,8 +139,12 @@ The app uses a Raycast-style single-window command palette interface with mode-b
 ```typescript
 invoke('vault_status') // Returns { has_vault: boolean, is_unlocked: boolean }
 invoke('init_vault', { password: string })
+invoke('init_vault_with_key', { keyHex: string, kdf: string })  // For OAuth/biometric flows
 invoke('unlock_vault', { password: string })
+invoke('unlock_vault_with_key', { keyHex: string })  // For OAuth/biometric flows
 invoke('lock_vault')
+invoke('get_vault_auth_method') // Returns 'oauth-pbkdf2' | 'biometric-keychain' | 'none'
+invoke('reencrypt_vault', { newKeyHex: string, newKdf: string, newSalt: string }) // Switch auth methods
 ```
 
 ### Entry Operations
@@ -151,23 +156,34 @@ invoke('add_entry', { title, username, password, url?, notes? })
 
 ## Authentication Flow
 
-### Vault Initialization
-1. User sets master password → `invoke('init_vault', { password })`
-2. Password → Argon2id KDF → 256-bit encryption key
-3. Salt + key encrypts empty vault with AES-256-GCM
-4. Encrypted vault stored in OS-specific config directory
+### First-Time Setup (Auth Selection)
+1. New user → AuthSelector shows OAuth and Biometric options
+2. OAuth path: Google Sign-In → derive key from user_id → `invoke('init_vault_with_key', { keyHex, kdf: 'oauth-pbkdf2' })`
+3. Biometric path: Generate random key → biometric prompt → store in OS keychain → `invoke('init_vault_with_key', { keyHex, kdf: 'biometric-keychain' })`
 
-### Vault Unlock
-1. User enters password → `invoke('unlock_vault', { password })`
-2. Password + stored salt → Argon2id → decryption key
+### Vault Unlock (OAuth)
+1. User clicks "Sign in with Google" → OAuth flow
+2. Google returns user_id → derive key → `invoke('unlock_vault_with_key', { keyHex })`
 3. Key decrypts vault data → session key stored in memory
-4. Success: vault accessible; Failure: "Invalid password" error
+
+### Vault Unlock (Biometric)
+1. User clicks "Unlock with Biometric" → `getData()` triggers OS biometric prompt
+2. OS returns stored key from keychain → `invoke('unlock_vault_with_key', { keyHex })`
+3. Key decrypts vault data → session key stored in memory
+
+### Auth Method Switching
+1. User opens Settings → current method displayed
+2. User chooses to switch → confirmation dialog
+3. If switching to Biometric: generate new key → store in keychain → `invoke('reencrypt_vault', { newKeyHex, newKdf: 'biometric-keychain', newSalt: '' })`
+4. If switching to OAuth: Google sign-in → derive key → `invoke('reencrypt_vault', { newKeyHex, newKdf: 'oauth-pbkdf2', newSalt: userId })` → clear stored key
 
 ### Security
-- **Key derivation**: Argon2id (memory_cost=32768, time_cost=2, parallelism=2)
+- **Key derivation (OAuth)**: Argon2id (memory_cost=32768, time_cost=2, parallelism=2) with Google user_id as salt
+- **Key generation (Biometric)**: cryptographically secure random 256-bit key, stored in OS keychain with biometric protection
 - **Encryption**: AES-256-GCM with 12-byte nonce
 - **Storage**: 
   - Windows: `%APPDATA%\Latch` (e.g., `C:\Users\%USERNAME%\AppData\Roaming\Latch`)
   - macOS: `~/Library/Application Support/Latch`
   - Linux: `~/.config/latch`
-- **Password**: Never stored, only used for key derivation
+- **Biometric key storage**: Windows Credential Manager / macOS Keychain / Android Keystore
+- **Atomic writes**: Vault updates written to temp file then renamed to prevent corruption
