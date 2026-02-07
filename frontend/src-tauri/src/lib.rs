@@ -4,12 +4,11 @@ mod vault;
 use oauth::get_user_id_from_token;
 use serde_json::json;
 use std::sync::Mutex;
-use std::thread;
 use tauri::menu::{MenuBuilder, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{Manager, State};
 use tauri_plugin_global_shortcut::ShortcutState;
-use vault::{EncryptedVault, Vault};
+use vault::Vault;
 
 struct VaultState(Mutex<Vault>);
 
@@ -51,6 +50,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_google_auth::init())
+        .plugin(tauri_plugin_biometry::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -100,20 +100,22 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            init_vault_oauth,
+            init_vault_with_key,
+            unlock_vault_oauth,
+            unlock_vault_with_key,
+            get_vault_auth_method,
+            reencrypt_vault,
+            reencrypt_vault_to_oauth,
+            vault_status,
+            lock_vault,
             search_entries,
             request_secret,
-            init_vault,
-            unlock_vault,
-            lock_vault,
-            vault_status,
             add_entry,
-            delete_entry,
             get_full_entry,
             update_entry,
-            init_vault_oauth,
-            unlock_vault_oauth,
-            migrate_to_oauth,
-            vault_requires_migration,
+            delete_entry,
+            get_auth_preferences,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -137,53 +139,6 @@ async fn request_secret(
     let secret = vault.get_entry(&entry_id, &field)?;
 
     Ok(json!({"status": "success", "value": secret}).to_string())
-}
-
-#[tauri::command]
-async fn init_vault(password: String, state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = &mut state.0.lock().unwrap();
-    vault.init_vault(&password)?;
-
-    Ok(json!({"status": "success"}).to_string())
-}
-
-#[tauri::command]
-async fn unlock_vault(password: String, state: State<'_, VaultState>) -> Result<String, String> {
-    let encrypted_vault: EncryptedVault = {
-        let vault = state.0.lock().unwrap();
-        let content = std::fs::read_to_string(vault.vault_path())
-            .map_err(|e| format!("Failed to read vault: {}", e))?;
-        serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?
-    };
-
-    let salt =
-        hex::decode(&encrypted_vault.salt).map_err(|e| format!("Invalid salt encoding: {}", e))?;
-
-    let key_result = thread::spawn(move || Vault::derive_key(&password, &salt))
-        .join()
-        .map_err(|e| format!("Key derivation thread panicked: {:?}", e))?;
-
-    let key = key_result?;
-
-    let encrypted_data = encrypted_vault.data;
-    let decrypted_result = thread::spawn(move || Vault::decrypt_data(&key, &encrypted_data))
-        .join()
-        .map_err(|e| format!("Decryption thread panicked: {:?}", e))?;
-
-    let decrypted = decrypted_result?;
-
-    let vault_data: serde_json::Value = serde_json::from_str(&decrypted)
-        .map_err(|e| format!("Failed to parse vault data: {}", e))?;
-
-    let entries: Vec<vault::Entry> =
-        serde_json::from_value(vault_data.get("entries").ok_or("Missing entries")?.clone())
-            .map_err(|e| format!("Failed to parse entries: {}", e))?;
-
-    let vault = &mut state.0.lock().unwrap();
-    vault.set_session_key(key);
-    vault.set_entries(entries);
-
-    Ok(json!({"status": "success"}).to_string())
 }
 
 #[tauri::command]
@@ -238,13 +193,10 @@ async fn delete_entry(entry_id: String, state: State<'_, VaultState>) -> Result<
 
 #[tauri::command]
 async fn get_full_entry(entry_id: String, state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = &mut state.0.lock().unwrap();
+    let vault = state.0.lock().unwrap();
     let entry = vault.get_full_entry(&entry_id)?;
 
-    let json_entry =
-        serde_json::to_string(&entry).map_err(|e| format!("Failed to serialize entry: {}", e))?;
-
-    Ok(json_entry)
+    serde_json::to_string(&entry).map_err(|e| format!("Failed to serialize entry: {}", e))
 }
 
 #[tauri::command]
@@ -258,7 +210,17 @@ async fn update_entry(
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
     let vault = &mut state.0.lock().unwrap();
-    vault.update_entry(&id, &title, &username, &password, url, icon_url)?;
+
+    let entry = vault::Entry {
+        id,
+        title,
+        username,
+        password,
+        url,
+        icon_url,
+    };
+
+    vault.update_entry(entry)?;
 
     Ok(json!({"status": "success"}).to_string())
 }
@@ -292,24 +254,114 @@ async fn unlock_vault_oauth(
 }
 
 #[tauri::command]
-async fn migrate_to_oauth(
-    password: String,
-    id_token: String,
+async fn init_vault_with_key(
+    key_hex: String,
+    kdf: String,
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
-    let user_id =
-        get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
+    let key_bytes = hex::decode(&key_hex).map_err(|e| format!("Invalid key hex: {}", e))?;
+    if key_bytes.len() != 32 {
+        return Err("Key must be 32 bytes".to_string());
+    }
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&key_bytes);
 
     let vault = &mut state.0.lock().unwrap();
-    vault.migrate_to_oauth(&password, &user_id)?;
+    vault.init_with_key(&key, &kdf)?;
 
     Ok(json!({"status": "success"}).to_string())
 }
 
 #[tauri::command]
-async fn vault_requires_migration(state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = state.0.lock().unwrap();
-    let requires = vault.requires_migration()?;
+async fn unlock_vault_with_key(
+    key_hex: String,
+    state: State<'_, VaultState>,
+) -> Result<String, String> {
+    let key_bytes = hex::decode(&key_hex).map_err(|e| format!("Invalid key hex: {}", e))?;
+    if key_bytes.len() != 32 {
+        return Err("Key must be 32 bytes".to_string());
+    }
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&key_bytes);
 
-    Ok(json!({"requires_migration": requires}).to_string())
+    let vault = &mut state.0.lock().unwrap();
+    vault.unlock_with_key(&key)?;
+
+    Ok(json!({"status": "success"}).to_string())
+}
+
+#[tauri::command]
+async fn get_vault_auth_method(state: State<'_, VaultState>) -> Result<String, String> {
+    let vault = state.0.lock().unwrap();
+    let method = vault
+        .get_auth_method()
+        .unwrap_or_else(|_| "none".to_string());
+
+    Ok(json!({
+        "status": "success",
+        "auth_method": method
+    })
+    .to_string())
+}
+
+#[tauri::command]
+async fn reencrypt_vault(
+    new_key_hex: String,
+    new_kdf: String,
+    new_salt: String,
+    state: State<'_, VaultState>,
+) -> Result<String, String> {
+    let key_bytes = hex::decode(&new_key_hex).map_err(|e| format!("Invalid key hex: {}", e))?;
+    if key_bytes.len() != 32 {
+        return Err("Key must be 32 bytes".to_string());
+    }
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&key_bytes);
+
+    let vault = &mut state.0.lock().unwrap();
+    vault.reencrypt_vault(&key, &new_kdf, &new_salt)?;
+
+    Ok(json!({"status": "success"}).to_string())
+}
+
+#[tauri::command]
+async fn reencrypt_vault_to_oauth(
+    id_token: String,
+    state: State<'_, VaultState>,
+) -> Result<String, String> {
+    let user_id =
+        get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
+    let key = oauth::derive_key_from_oauth(&user_id)?;
+
+    let vault = &mut state.0.lock().unwrap();
+    vault.reencrypt_vault(&key, "oauth-pbkdf2", &user_id)?;
+
+    Ok(json!({"status": "success"}).to_string())
+}
+
+#[tauri::command]
+async fn get_auth_preferences(state: State<'_, VaultState>) -> Result<String, String> {
+    let vault = state.0.lock().unwrap();
+    let auth_method = vault
+        .get_auth_method()
+        .unwrap_or_else(|_| "none".to_string());
+    let is_unlocked = vault.is_unlocked();
+
+    let session_remaining = if is_unlocked {
+        vault
+            .session_start
+            .and_then(|start| start.elapsed().ok())
+            .map(|e| 30 * 60 - e.as_secs())
+            .unwrap_or(0)
+    } else {
+        0
+    };
+
+    Ok(json!({
+        "status": "success",
+        "auth_method": auth_method,
+        "session_valid": is_unlocked,
+        "session_remaining_seconds": session_remaining
+    })
+    .to_string())
 }

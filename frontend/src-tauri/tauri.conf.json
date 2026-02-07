@@ -14,7 +14,7 @@
       {
         "title": "Latch",
         "width": 640,
-        "height": 88,
+        "height": 280,
         "resizable": false,
         "fullscreen": false,
         "center": true,
@@ -26,6 +26,13 @@
     ],
     "security": {
       "csp": null
+    }
+  },
+  "plugins": {
+    "biometric": {
+      "i18n": {
+        "allowed": true
+      }
     }
   },
   "bundle": {

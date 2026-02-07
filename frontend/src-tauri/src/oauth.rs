@@ -1,3 +1,4 @@
+use argon2::{Argon2, Params};
 use jsonwebtoken::{decode, Algorithm, Validation};
 use serde::Deserialize;
 use std::env;
@@ -22,17 +23,22 @@ pub fn derive_key_from_oauth(user_id: &str) -> Result<[u8; 32], String> {
         return Err("App secret too short - must be at least 16 bytes".to_string());
     }
 
-    // Use PBKDF2 to derive a 32-byte key
+    // Use Argon2id to derive a 32-byte key
+    // Parameters: memory_cost=32768, time_cost=2, parallelism=2
+    let params =
+        Params::new(32768, 2, 2, Some(32)).map_err(|e| format!("Invalid Argon2 params: {}", e))?;
+
+    let argon2 = Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
+
     // Salt includes user_id to make keys user-specific
     let salt = format!("latch-vault-oauth-{}", user_id);
+    let salt_bytes = salt.as_bytes();
 
+    // Derive key using Argon2id
     let mut key = [0u8; 32];
-    pbkdf2::pbkdf2_hmac::<sha2::Sha256>(
-        app_secret.as_bytes(),
-        salt.as_bytes(),
-        100_000, // 100,000 iterations
-        &mut key,
-    );
+    argon2
+        .hash_password_into(app_secret.as_bytes(), salt_bytes, &mut key)
+        .map_err(|e| format!("Argon2 hashing failed: {}", e))?;
 
     Ok(key)
 }
