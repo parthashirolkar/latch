@@ -259,8 +259,7 @@ async fn init_vault_with_key(
     kdf: String,
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
-    let key_bytes = hex::decode(&key_hex)
-        .map_err(|e| format!("Invalid key hex: {}", e))?;
+    let key_bytes = hex::decode(&key_hex).map_err(|e| format!("Invalid key hex: {}", e))?;
     if key_bytes.len() != 32 {
         return Err("Key must be 32 bytes".to_string());
     }
@@ -278,8 +277,7 @@ async fn unlock_vault_with_key(
     key_hex: String,
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
-    let key_bytes = hex::decode(&key_hex)
-        .map_err(|e| format!("Invalid key hex: {}", e))?;
+    let key_bytes = hex::decode(&key_hex).map_err(|e| format!("Invalid key hex: {}", e))?;
     if key_bytes.len() != 32 {
         return Err("Key must be 32 bytes".to_string());
     }
@@ -295,7 +293,9 @@ async fn unlock_vault_with_key(
 #[tauri::command]
 async fn get_vault_auth_method(state: State<'_, VaultState>) -> Result<String, String> {
     let vault = state.0.lock().unwrap();
-    let method = vault.get_auth_method().unwrap_or_else(|_| "none".to_string());
+    let method = vault
+        .get_auth_method()
+        .unwrap_or_else(|_| "none".to_string());
 
     Ok(json!({
         "status": "success",
@@ -311,8 +311,7 @@ async fn reencrypt_vault(
     new_salt: String,
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
-    let key_bytes = hex::decode(&new_key_hex)
-        .map_err(|e| format!("Invalid key hex: {}", e))?;
+    let key_bytes = hex::decode(&new_key_hex).map_err(|e| format!("Invalid key hex: {}", e))?;
     if key_bytes.len() != 32 {
         return Err("Key must be 32 bytes".to_string());
     }
@@ -343,7 +342,9 @@ async fn reencrypt_vault_to_oauth(
 #[tauri::command]
 async fn get_auth_preferences(state: State<'_, VaultState>) -> Result<String, String> {
     let vault = state.0.lock().unwrap();
-    let auth_method = vault.get_auth_method().unwrap_or_else(|_| "none".to_string());
+    let auth_method = vault
+        .get_auth_method()
+        .unwrap_or_else(|_| "none".to_string());
     let is_unlocked = vault.is_unlocked();
 
     let session_remaining = if is_unlocked {

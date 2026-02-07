@@ -342,10 +342,6 @@ impl Vault {
         Ok(())
     }
 
-    pub fn get_encryption_key(&self) -> Result<[u8; 32], String> {
-        self.session_key.ok_or("Vault is not unlocked".to_string())
-    }
-
     pub fn unlock_with_key(&mut self, key: &[u8; 32]) -> Result<(), String> {
         if !self.vault_exists() {
             return Err("Vault does not exist".to_string());
@@ -411,8 +407,7 @@ impl Vault {
             .map_err(|e| format!("Failed to serialize vault: {}", e))?;
 
         let tmp_path = self.vault_path.with_extension("enc.tmp");
-        fs::write(&tmp_path, &json_vault)
-            .map_err(|e| format!("Failed to write vault: {}", e))?;
+        fs::write(&tmp_path, &json_vault).map_err(|e| format!("Failed to write vault: {}", e))?;
         fs::rename(&tmp_path, &self.vault_path)
             .map_err(|e| format!("Failed to rename vault: {}", e))?;
 
@@ -450,8 +445,7 @@ impl Vault {
             .map_err(|e| format!("Failed to serialize vault: {}", e))?;
 
         let tmp_path = self.vault_path.with_extension("enc.tmp");
-        fs::write(&tmp_path, &json_vault)
-            .map_err(|e| format!("Failed to write vault: {}", e))?;
+        fs::write(&tmp_path, &json_vault).map_err(|e| format!("Failed to write vault: {}", e))?;
         fs::rename(&tmp_path, &self.vault_path)
             .map_err(|e| format!("Failed to rename vault: {}", e))?;
 
@@ -490,7 +484,7 @@ mod tests {
         let vault_path = temp_dir.path().join("vault.enc");
         fs::create_dir_all(temp_dir.path()).unwrap();
 
-        let mut vault = Vault {
+        let vault = Vault {
             entries: Vec::new(),
             session_key: None,
             session_start: None,
@@ -532,16 +526,20 @@ mod tests {
         let key2 = [2u8; 32];
 
         vault.init_with_key(&key1, "biometric-keychain").unwrap();
-        vault.add_entry(Entry {
-            id: "test-id".to_string(),
-            title: "Test".to_string(),
-            username: "user".to_string(),
-            password: "pass".to_string(),
-            url: None,
-            icon_url: None,
-        }).unwrap();
+        vault
+            .add_entry(Entry {
+                id: "test-id".to_string(),
+                title: "Test".to_string(),
+                username: "user".to_string(),
+                password: "pass".to_string(),
+                url: None,
+                icon_url: None,
+            })
+            .unwrap();
 
-        vault.reencrypt_vault(&key2, "oauth-pbkdf2", "user123").unwrap();
+        vault
+            .reencrypt_vault(&key2, "oauth-pbkdf2", "user123")
+            .unwrap();
         assert_eq!(vault.get_auth_method().unwrap(), "oauth-pbkdf2");
 
         vault.lock_vault();

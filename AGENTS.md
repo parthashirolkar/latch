@@ -38,6 +38,53 @@ act --container-architecture linux/amd64 -P ubuntu-latest=catthehacker/ubuntu:ac
 
 **Best practice**: Run `act` before pushing to catch CI failures early and avoid round-trip debugging.
 
+### Pre-PR CI Preparation Checklist
+
+**MANDATORY: Run these commands before creating any PR to ensure CI passes:**
+
+#### Backend (Rust)
+```bash
+cd frontend/src-tauri
+
+# 1. Format code (CI will fail if not formatted)
+cargo fmt --all
+
+# 2. Check compilation
+cargo check
+
+# 3. Run clippy with strict warnings (CI uses: -D warnings)
+cargo clippy --all-targets --all-features -- -D warnings
+
+# 4. Run all tests
+cargo test
+```
+
+#### Frontend (TypeScript)
+```bash
+cd frontend
+
+# 1. Type check
+bun run typecheck
+
+# 2. Build (catches import errors, missing deps)
+bun run build
+```
+
+#### Full CI Verification (Recommended)
+```bash
+# Run complete CI suite locally with act (requires Docker)
+act --container-architecture linux/amd64 -P ubuntu-latest=catthehacker/ubuntu:act-latest
+```
+
+**Common CI Failures to Avoid:**
+- ❌ `cargo fmt` not run → Formatting errors
+- ❌ Dead code (unused functions/variables) → Clippy `-D warnings` fails
+- ❌ Missing `mut` or extra `mut` → Compiler errors
+- ❌ Import errors → TypeScript build fails
+- ❌ Test failures → `cargo test` fails
+
+**Rule of Thumb**: If any command above fails locally, the CI will fail. Fix it before pushing.
+
 ## Code Style Guidelines
 
 ### Architecture Principles
