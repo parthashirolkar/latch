@@ -1,6 +1,5 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
 import {
   Search,
   Lock,
@@ -21,7 +20,7 @@ import AuthSelector from './AuthSelector'
 import MigrateVault from './MigrateVault'
 import Settings from './Settings'
 
-type PaletteMode = 'setup' | 'locked' | 'search' | 'actions' | 'add-entry' | 'edit-entry' | 'delete-confirm' | 'auth-selector' | 'oauth-setup' | 'oauth-login' | 'biometric-setup' | 'biometric-login' | 'migrate' | 'settings'
+type PaletteMode = 'search' | 'actions' | 'add-entry' | 'edit-entry' | 'delete-confirm' | 'auth-selector' | 'oauth-setup' | 'oauth-login' | 'biometric-setup' | 'biometric-login' | 'migrate' | 'settings'
 
 interface Entry {
   id: string
@@ -35,10 +34,8 @@ interface CommandPaletteProps {
 }
 
 function CommandPalette({ initialMode }: CommandPaletteProps) {
-  const appWindow = getCurrentWindow()
   const [mode, setMode] = useState<PaletteMode>(initialMode)
   const [inputValue, setInputValue] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [searchResults, setSearchResults] = useState<Entry[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -49,7 +46,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     password: '',
     url: ''
   })
-  const [isUnlocking, setIsUnlocking] = useState(false)
+  const [isUnlocking] = useState(false)
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null)
   const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
   const [entryToEdit, setEntryToEdit] = useState<Entry | null>(null)
@@ -134,65 +131,10 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       await invoke('lock_vault')
       await setModeToLogin()
       setInputValue('')
-      setConfirmPassword('')
       setSearchResults([])
       setError('')
     } catch (error) {
       console.error('Failed to lock vault:', error)
-    }
-  }
-
-  const handleSetup = async () => {
-    setError('')
-    if (inputValue !== confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-    if (inputValue.length === 0) {
-      setError('Password cannot be empty')
-      return
-    }
-
-    try {
-      const result = await invoke('init_vault', { password: inputValue })
-      const response = JSON.parse(result as string)
-
-      if (response.status === 'success') {
-        setMode('search')
-        setInputValue('')
-        setConfirmPassword('')
-        setError('')
-      } else {
-        setError(response.message || 'Failed to initialize vault')
-      }
-    } catch (err) {
-      setError(err as string)
-    }
-  }
-
-  const handleUnlock = async () => {
-    setError('')
-    if (inputValue.length === 0) {
-      setError('Password cannot be empty')
-      return
-    }
-
-    setIsUnlocking(true)
-    try {
-      const result = await invoke('unlock_vault', { password: inputValue })
-      const response = JSON.parse(result as string)
-
-      if (response.status === 'success') {
-        setMode('search')
-        setInputValue('')
-        setError('')
-      } else {
-        setError(response.message || 'Failed to unlock vault')
-      }
-    } catch (err) {
-      setError(err as string)
-    } finally {
-      setIsUnlocking(false)
     }
   }
 
@@ -246,11 +188,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   }
 
   const handleEnterKey = () => {
-    if (mode === 'setup') {
-      handleSetup()
-    } else if (mode === 'locked') {
-      handleUnlock()
-    } else if (mode === 'search' && searchResults.length > 0) {
+    if (mode === 'search' && searchResults.length > 0) {
       const selected = searchResults[selectedIndex]
       setActions(createEntryActions(selected.id, selected.title, handleCopyPassword, handleCopyUsername, handleEdit, handleLock, onBack))
       setMode('actions')
@@ -375,33 +313,6 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     (mode === 'search' && searchResults.length > 0) ||
     (mode === 'actions' && actions.length > 0) ||
     mode === 'delete-confirm'
-  const showPasswordConfirm = mode === 'setup'
-  const isPasswordMode = mode === 'setup' || mode === 'locked'
-
-  const resizeWindow = useCallback(() => {
-    const palette = paletteRef.current
-    if (!palette) return
-
-    const height = Math.ceil(palette.getBoundingClientRect().height)
-    if (height <= 0) return
-
-    const width = 640
-    void appWindow.setSize(new LogicalSize(width, height))
-    void appWindow.center()
-  }, [appWindow])
-
-  useLayoutEffect(() => {
-    resizeWindow()
-  }, [resizeWindow, mode, itemCount, error, showPasswordConfirm, showList])
-
-  useEffect(() => {
-    if (mode === 'settings') {
-      const timer = setTimeout(() => {
-        resizeWindow()
-      }, 100)
-      return () => clearTimeout(timer)
-    }
-  }, [mode, resizeWindow])
 
   useKeyboardNav({
     itemCount,
@@ -461,10 +372,6 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
 
   const getPlaceholder = () => {
     switch (mode) {
-      case 'setup':
-        return 'Create master password...'
-      case 'locked':
-        return 'Unlock vault...'
       case 'search':
         return 'Search passwords...'
       case 'actions':
@@ -481,12 +388,12 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   }
 
   const getIcon = () => {
-    if (mode === 'locked' && isUnlocking) {
+    if (mode === 'oauth-setup' && isUnlocking) {
       return Loader2
     }
     switch (mode) {
-      case 'setup':
-      case 'locked':
+      case 'oauth-setup':
+      case 'biometric-setup':
         return Lock
       case 'search':
         return Search
@@ -572,28 +479,14 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
           <PaletteInput
             value={inputValue}
             onChange={setInputValue}
-            onSubmit={isPasswordMode ? (mode === 'setup' ? handleSetup : handleUnlock) : undefined}
+            onSubmit={undefined}
             placeholder={getPlaceholder()}
-            type={isPasswordMode ? 'password' : 'text'}
+            type="text"
             icon={getIcon()}
             autoFocus={true}
-            disabled={mode === 'locked' && isUnlocking}
-            iconSpin={mode === 'locked' && isUnlocking}
+            disabled={false}
+            iconSpin={false}
           />
-
-          {showPasswordConfirm && (
-            <div className="palette-confirm-container">
-              <PaletteInput
-                value={confirmPassword}
-                onChange={setConfirmPassword}
-                onSubmit={handleSetup}
-                placeholder="Confirm master password..."
-                type="password"
-                icon={Lock}
-                autoFocus={false}
-              />
-            </div>
-          )}
 
           {error && <div className="palette-error">{error}</div>}
 

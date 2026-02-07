@@ -1,4 +1,3 @@
-mod biometric;
 mod oauth;
 mod vault;
 
@@ -207,6 +206,7 @@ async fn update_entry(
     username: String,
     password: String,
     url: Option<String>,
+    icon_url: Option<String>,
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
     let vault = &mut state.0.lock().unwrap();
@@ -217,7 +217,7 @@ async fn update_entry(
         username,
         password,
         url,
-        icon_url: None,
+        icon_url,
     };
 
     vault.update_entry(entry)?;

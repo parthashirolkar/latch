@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import CommandPalette from './components/CommandPalette'
+import { useWindowAutoResize } from './hooks/useWindowAutoResize'
 
 interface VaultStatus {
   has_vault: boolean
@@ -25,6 +26,8 @@ function App() {
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [authMethod, setAuthMethod] = useState<string>('none')
   const [loading, setLoading] = useState(true)
+  const appRef = useRef<HTMLDivElement>(null)
+  useWindowAutoResize(appRef)
 
   useEffect(() => {
     checkVaultStatus()
@@ -52,7 +55,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="app-container">
+      <div className="app-container" ref={appRef}>
         <div className="command-palette">
           <div className="palette-loading">Loading...</div>
         </div>
@@ -69,7 +72,7 @@ function App() {
       : 'search'
 
   return (
-    <div className="app-container">
+    <div className="app-container" ref={appRef}>
       <CommandPalette initialMode={initialMode} />
     </div>
   )

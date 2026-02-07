@@ -6,6 +6,9 @@ import {
   generateAndStoreKey,
   clearStoredKey
 } from '../utils/biometricKeys'
+import ConfirmationModal from './ConfirmationModal'
+
+type AuthMethod = 'oauth-pbkdf2' | 'biometric-keychain'
 
 interface AuthPreferences {
   auth_method: string
@@ -18,7 +21,7 @@ function getAuthMethodLabel(authMethod: string): string {
     case 'oauth-pbkdf2':
       return 'Google OAuth'
     case 'biometric-keychain':
-      return 'Windows Hello'
+      return 'Biometric Authentication'
     default:
       return authMethod || 'Unknown'
   }
@@ -31,13 +34,30 @@ function Settings() {
     session_remaining_seconds: 0
   })
   const [biometricAvailable, setBiometricAvailable] = useState(false)
+  const [selectedMethod, setSelectedMethod] = useState<AuthMethod>('oauth-pbkdf2')
+  const [liveRemainingSeconds, setLiveRemainingSeconds] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [switching, setSwitching] = useState(false)
   const [error, setError] = useState('')
+  const [confirmation, setConfirmation] = useState<{
+    message: string
+    onConfirm: () => void
+  } | null>(null)
 
   useEffect(() => {
     loadPreferences()
   }, [])
+
+  useEffect(() => {
+    if (liveRemainingSeconds === null || liveRemainingSeconds <= 0) return
+    const interval = setInterval(() => {
+      setLiveRemainingSeconds((prev) => {
+        if (prev === null || prev <= 1) return 0
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [liveRemainingSeconds])
 
   const loadPreferences = async () => {
     try {
@@ -47,11 +67,18 @@ function Settings() {
       const prefsResult = await invoke('get_auth_preferences')
       const prefs = JSON.parse(prefsResult as string)
 
+      const authMethod = prefs.auth_method ?? 'none'
+      const sessionValid = prefs.session_valid ?? false
+      const remaining = prefs.session_remaining_seconds ?? 0
       setPreferences({
-        auth_method: prefs.auth_method ?? 'none',
-        session_valid: prefs.session_valid ?? false,
-        session_remaining_seconds: prefs.session_remaining_seconds ?? 0
+        auth_method: authMethod,
+        session_valid: sessionValid,
+        session_remaining_seconds: remaining
       })
+      setLiveRemainingSeconds(sessionValid && remaining > 0 ? remaining : null)
+      setSelectedMethod(
+        authMethod === 'biometric-keychain' ? 'biometric-keychain' : 'oauth-pbkdf2'
+      )
 
       const status = await checkStatus()
       setBiometricAvailable(status.isAvailable)
@@ -63,31 +90,68 @@ function Settings() {
     }
   }
 
-  const handleSwitchToBiometric = async () => {
+  const hasChanges = selectedMethod !== preferences.auth_method
+
+  const validateOAuthConfig = (): string | null => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET
+    if (
+      !clientId ||
+      !clientSecret ||
+      clientId === 'your-client-id-here' ||
+      clientSecret === 'your-client-secret-here'
+    ) {
+      return 'Google OAuth is not configured. Add VITE_GOOGLE_CLIENT_ID and VITE_GOOGLE_CLIENT_SECRET to your .env file.'
+    }
+    return null
+  }
+
+  const handleSave = () => {
+    if (!hasChanges) return
     if (!preferences.session_valid) {
       setError('Vault must be unlocked to switch. Please unlock first.')
       return
     }
-    if (!biometricAvailable) {
-      setError('Windows Hello is not configured on this device.')
-      return
+    if (selectedMethod === 'biometric-keychain') {
+      if (!biometricAvailable) {
+        setError('Biometric authentication is not configured on this device.')
+        return
+      }
+      setConfirmation({
+        message:
+          'This will re-encrypt your vault with biometric authentication. Continue?',
+        onConfirm: performSwitchToBiometric
+      })
+    } else {
+      const oauthError = validateOAuthConfig()
+      if (oauthError) {
+        setError(oauthError)
+        return
+      }
+      setConfirmation({
+        message: 'This will re-encrypt your vault with Google OAuth. Continue?',
+        onConfirm: performSwitchToOAuth
+      })
     }
+  }
 
-    const confirmed = window.confirm(
-      'This will re-encrypt your vault with Windows Hello. Continue?'
-    )
-    if (!confirmed) return
-
+  const performSwitchToBiometric = async () => {
+    setConfirmation(null)
     setSwitching(true)
     setError('')
     try {
       const keyHex = await generateAndStoreKey()
-      await invoke('reencrypt_vault', {
-        newKeyHex: keyHex,
-        newKdf: 'biometric-keychain',
-        newSalt: ''
-      })
-      await loadPreferences()
+      try {
+        await invoke('reencrypt_vault', {
+          newKeyHex: keyHex,
+          newKdf: 'biometric-keychain',
+          newSalt: ''
+        })
+        await loadPreferences()
+      } catch (reencryptErr) {
+        await clearStoredKey()
+        throw reencryptErr
+      }
     } catch (err) {
       console.error('Failed to switch to biometric:', err)
       setError(String(err))
@@ -96,17 +160,8 @@ function Settings() {
     }
   }
 
-  const handleSwitchToOAuth = async () => {
-    if (!preferences.session_valid) {
-      setError('Vault must be unlocked to switch. Please unlock first.')
-      return
-    }
-
-    const confirmed = window.confirm(
-      'This will re-encrypt your vault with Google OAuth. Continue?'
-    )
-    if (!confirmed) return
-
+  const performSwitchToOAuth = async () => {
+    setConfirmation(null)
     setSwitching(true)
     setError('')
     try {
@@ -133,9 +188,19 @@ function Settings() {
     }
   }
 
+  const handleCancel = () => {
+    setSelectedMethod(
+      preferences.auth_method === 'biometric-keychain'
+        ? 'biometric-keychain'
+        : 'oauth-pbkdf2'
+    )
+    setError('')
+  }
+
   const getSessionTimeRemaining = () => {
     if (!preferences.session_valid) return null
-    const remaining = preferences.session_remaining_seconds
+    const remaining =
+      liveRemainingSeconds !== null ? liveRemainingSeconds : preferences.session_remaining_seconds
     if (remaining <= 0) return 'Expired'
     const minutes = Math.floor(remaining / 60)
     const seconds = remaining % 60
@@ -152,115 +217,98 @@ function Settings() {
   }
 
   const currentLabel = getAuthMethodLabel(preferences.auth_method)
-  const canSwitchToBiometric =
-    preferences.auth_method !== 'biometric-keychain' && biometricAvailable
-  const canSwitchToOAuth = preferences.auth_method !== 'oauth-pbkdf2'
 
   return (
     <div className="settings-container">
-      <div className="settings-header">
-        <h2>Authentication Settings</h2>
-        <p>Manage your authentication method</p>
-      </div>
+      <header className="settings-header">
+        <h2>Authentication</h2>
+        <div className="settings-header-meta">
+          <span className="settings-current-badge">{currentLabel}</span>
+          {preferences.session_valid && (
+            <span className="settings-session-timer">
+              {getSessionTimeRemaining()}
+            </span>
+          )}
+        </div>
+      </header>
 
-      <div className="settings-section">
-        <div className="settings-section-header">
-          <h3>Current Method</h3>
+      <div className="settings-body">
+        <p className="settings-instruction">
+          Choose how you unlock your vault. Switching re-encrypts your data.
+        </p>
+
+        <div className="settings-radio-group">
+          <label
+            className={`settings-radio-option ${selectedMethod === 'biometric-keychain' ? 'selected' : ''} ${!biometricAvailable ? 'disabled' : ''}`}
+          >
+            <input
+              type="radio"
+              name="auth-method"
+              value="biometric-keychain"
+              checked={selectedMethod === 'biometric-keychain'}
+              onChange={() => setSelectedMethod('biometric-keychain')}
+              disabled={!biometricAvailable || switching}
+            />
+            <span className="settings-radio-label">Biometric</span>
+            <span className="settings-radio-description">
+              Fingerprint or face
+            </span>
+          </label>
+          <label
+            className={`settings-radio-option ${selectedMethod === 'oauth-pbkdf2' ? 'selected' : ''}`}
+          >
+            <input
+              type="radio"
+              name="auth-method"
+              value="oauth-pbkdf2"
+              checked={selectedMethod === 'oauth-pbkdf2'}
+              onChange={() => setSelectedMethod('oauth-pbkdf2')}
+              disabled={switching}
+            />
+            <span className="settings-radio-label">Google OAuth</span>
+            <span className="settings-radio-description">
+              Sign in with Google
+            </span>
+          </label>
         </div>
 
-        <div className="settings-item">
-          <div className="settings-item-content">
-            <div className="settings-item-label">
-              Authentication: {currentLabel}
-            </div>
-            <div className="settings-item-description">
-              {preferences.auth_method === 'biometric-keychain'
-                ? 'Use your fingerprint or face to unlock'
-                : 'Authenticate with your Google account'}
-            </div>
-            {preferences.session_valid && (
-              <div className="settings-item-status">
-                Session expires in {getSessionTimeRemaining()}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="settings-item">
-          <div className="settings-item-content">
-            <div className="settings-item-description">
-              You can switch to a different authentication method below. Your
-              vault will be re-encrypted with the new method.
-            </div>
-          </div>
-          <div className="settings-toggle">
-            {canSwitchToBiometric && (
-              <button
-                className="settings-button primary"
-                onClick={handleSwitchToBiometric}
-                disabled={switching}
-              >
-                {switching ? '...' : 'Switch to Windows Hello'}
-              </button>
-            )}
-            {canSwitchToOAuth && (
-              <button
-                className="settings-button primary"
-                onClick={handleSwitchToOAuth}
-                disabled={switching}
-              >
-                {switching ? '...' : 'Switch to Google OAuth'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {!biometricAvailable && preferences.auth_method !== 'biometric-keychain' && (
-          <div className="settings-item">
-            <div className="settings-item-content">
-              <div
-                className="settings-item-label"
-                style={{ color: 'var(--text-tertiary)' }}
-              >
-                Windows Hello not available
-              </div>
-              <div className="settings-item-description">
-                Your device does not support biometric authentication or it is
-                not configured
-              </div>
-            </div>
+        {hasChanges && (
+          <div className="settings-actions">
+            <button
+              className="settings-button settings-button-ghost"
+              onClick={handleCancel}
+              disabled={switching}
+            >
+              Cancel
+            </button>
+            <button
+              className="settings-button settings-button-primary"
+              onClick={handleSave}
+              disabled={switching}
+            >
+              {switching ? 'Saving…' : 'Save'}
+            </button>
           </div>
         )}
+
+        {!biometricAvailable && preferences.auth_method !== 'biometric-keychain' && (
+          <p className="settings-hint">
+            Biometric authentication is not available on this device.
+          </p>
+        )}
+
+        <p className="settings-footnote">
+          Vault is encrypted locally. No backup. Lost access = lost data.
+        </p>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-header">
-          <h3>About</h3>
-        </div>
-        <div className="settings-item">
-          <div className="settings-item-content">
-            <div className="settings-item-description">
-              Your vault is encrypted and stored locally. There is no backup.
-              If you lose access to your chosen authentication method, your
-              vault cannot be recovered.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {error && (
-        <div
-          style={{
-            marginTop: '12px',
-            padding: '12px',
-            background: 'var(--error-bg)',
-            color: 'var(--error-text)',
-            borderRadius: '4px',
-            fontSize: 'var(--font-sm)'
-          }}
-        >
-          {error}
-        </div>
+      {error && <div className="settings-error">{error}</div>}
+      {confirmation && (
+        <ConfirmationModal
+          message={confirmation.message}
+          onConfirm={confirmation.onConfirm}
+          onCancel={() => setConfirmation(null)}
+        />
       )}
     </div>
   )

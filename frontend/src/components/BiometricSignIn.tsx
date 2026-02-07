@@ -65,13 +65,13 @@ export default function BiometricSignIn({
       <div className="oauth-header">
         {mode === 'setup' ? (
           <>
-            <h2>Set up Windows Hello</h2>
+            <h2>Set up Biometric Authentication</h2>
             <p>Use your fingerprint or face to protect your vault</p>
           </>
         ) : (
           <>
             <h2>Unlock Latch</h2>
-            <p>Authenticate with Windows Hello to access your passwords</p>
+            <p>Authenticate with biometric verification to access your passwords</p>
           </>
         )}
       </div>
@@ -97,7 +97,7 @@ export default function BiometricSignIn({
       </button>
 
       <div className="oauth-footer">
-        <p>Your vault is protected by Windows Hello</p>
+        <p>Your vault is protected by biometric authentication</p>
       </div>
     </div>
   )

@@ -248,12 +248,10 @@ impl Vault {
     fn save_vault(&self) -> Result<(), String> {
         let key = self.session_key.ok_or("Vault is locked".to_string())?;
 
-        let vault_data = VaultData {
+        let json_data = serde_json::to_string(&VaultData {
             entries: self.entries.clone(),
-        };
-
-        let json_data = serde_json::to_string(&vault_data)
-            .map_err(|e| format!("Failed to serialize vault data: {}", e))?;
+        })
+        .map_err(|e| format!("Failed to serialize vault data: {}", e))?;
 
         let encrypted_data = Self::encrypt_data(&key, &json_data)?;
 
@@ -268,8 +266,10 @@ impl Vault {
         let json_vault = serde_json::to_string_pretty(&vault)
             .map_err(|e| format!("Failed to serialize vault: {}", e))?;
 
-        fs::write(&self.vault_path, json_vault)
-            .map_err(|e| format!("Failed to write vault: {}", e))?;
+        let tmp_path = self.vault_path.with_extension("enc.tmp");
+        fs::write(&tmp_path, &json_vault).map_err(|e| format!("Failed to write vault: {}", e))?;
+        fs::rename(&tmp_path, &self.vault_path)
+            .map_err(|e| format!("Failed to rename vault: {}", e))?;
 
         Ok(())
     }
@@ -290,8 +290,8 @@ impl Vault {
         let encrypted_data = Self::encrypt_data(&key, &json_data)?;
 
         let vault = EncryptedVault {
-            version: "1".to_string(),
-            kdf: "oauth-pbkdf2".to_string(),
+            version: "2".to_string(),
+            kdf: "oauth-argon2id".to_string(),
             salt: user_id.to_string(),
             data: encrypted_data,
         };
@@ -299,8 +299,10 @@ impl Vault {
         let json_vault = serde_json::to_string_pretty(&vault)
             .map_err(|e| format!("Failed to serialize vault: {}", e))?;
 
-        fs::write(&self.vault_path, json_vault)
-            .map_err(|e| format!("Failed to write vault: {}", e))?;
+        let tmp_path = self.vault_path.with_extension("enc.tmp");
+        fs::write(&tmp_path, json_vault).map_err(|e| format!("Failed to write vault: {}", e))?;
+        fs::rename(&tmp_path, &self.vault_path)
+            .map_err(|e| format!("Failed to rename vault: {}", e))?;
 
         self.session_key = Some(key);
         self.session_start = Some(SystemTime::now());
@@ -320,8 +322,8 @@ impl Vault {
         let vault: EncryptedVault =
             serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
 
-        if vault.kdf != "oauth-pbkdf2" {
-            return Err("Vault was created with password auth. Use migration first.".to_string());
+        if vault.kdf != "oauth-pbkdf2" && vault.kdf != "oauth-argon2id" {
+            return Err("Vault was created with an unsupported authentication method. Please create a new vault.".to_string());
         }
 
         if vault.salt != user_id {
@@ -555,5 +557,32 @@ mod tests {
         vault.init_with_key(&key, "biometric-keychain").unwrap();
         assert!(vault.vault_exists());
         assert!(!vault.vault_path.with_extension("enc.tmp").exists());
+    }
+
+    #[test]
+    fn test_init_with_oauth() {
+        let (mut vault, _temp) = create_test_vault();
+        assert!(!vault.vault_exists());
+
+        let user_id = "test_user_id";
+
+        vault.init_with_oauth(user_id).unwrap();
+
+        assert!(vault.vault_exists());
+        assert_eq!(vault.get_auth_method().unwrap(), "oauth-argon2id");
+        assert!(vault.is_unlocked());
+    }
+
+    #[test]
+    fn test_unlock_with_oauth() {
+        let (mut vault, _temp) = create_test_vault();
+        let user_id = "test_user_id";
+
+        vault.init_with_oauth(user_id).unwrap();
+        vault.lock_vault();
+
+        assert!(!vault.is_unlocked());
+        vault.unlock_with_oauth(user_id).unwrap();
+        assert!(vault.is_unlocked());
     }
 }
