@@ -1,35 +1,16 @@
-import { Chrome, Loader2, Fingerprint } from 'lucide-react'
+import { Chrome, Loader2 } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { useState } from 'react'
 import { signIn } from '@choochmeque/tauri-plugin-google-auth-api'
-import { authenticate } from '@choochmeque/tauri-plugin-biometry-api'
 
 interface OAuthSignInProps {
   mode: 'setup' | 'login'
   onSuccess: () => void
   onError?: (error: string) => void
-  biometricEnabled?: boolean
 }
 
-export default function OAuthSignIn({ mode, onSuccess, onError, biometricEnabled }: OAuthSignInProps) {
+export default function OAuthSignIn({ mode, onSuccess, onError }: OAuthSignInProps) {
   const [isProcessing, setIsProcessing] = useState(false)
-  const [isBiometricProcessing, setIsBiometricProcessing] = useState(false)
-
-  const handleBiometricUnlock = async () => {
-    if (mode !== 'login') return
-    
-    setIsBiometricProcessing(true)
-    try {
-      await authenticate('Unlock Latch')
-      await invoke('unlock_with_biometric_key')
-      onSuccess()
-    } catch (error) {
-      console.error('Biometric unlock failed:', error)
-      onError?.('Biometric authentication failed')
-    } finally {
-      setIsBiometricProcessing(false)
-    }
-  }
 
   const handleSignIn = async () => {
     setIsProcessing(true)
@@ -78,32 +59,6 @@ export default function OAuthSignIn({ mode, onSuccess, onError, biometricEnabled
           </>
         )}
       </div>
-
-      {biometricEnabled && mode === 'login' ? (
-        <>
-          <button
-            onClick={handleBiometricUnlock}
-            disabled={isBiometricProcessing}
-            className="oauth-button biometric-button"
-          >
-            {isBiometricProcessing ? (
-              <>
-                <Loader2 size={20} className="spin" />
-                <span>Authenticating...</span>
-              </>
-            ) : (
-              <>
-                <Fingerprint size={20} />
-                <span>Unlock with Biometric</span>
-              </>
-            )}
-          </button>
-          
-          <div className="oauth-divider">
-            <span>or</span>
-          </div>
-        </>
-      ) : null}
 
       <button
         onClick={handleSignIn}

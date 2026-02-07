@@ -357,8 +357,8 @@ impl Vault {
         let vault: EncryptedVault =
             serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
 
-        if vault.kdf != "oauth-pbkdf2" {
-            return Err("Vault was created with password auth. Use migration first.".to_string());
+        if vault.kdf != "oauth-pbkdf2" && vault.kdf != "biometric-keychain" {
+            return Err("Unknown vault authentication method".to_string());
         }
 
         let decrypted = Self::decrypt_data(key, &vault.data)?;
@@ -369,6 +369,94 @@ impl Vault {
         self.session_key = Some(*key);
         self.session_start = Some(SystemTime::now());
         self.entries = vault_data.entries;
+
+        Ok(())
+    }
+
+    pub fn get_auth_method(&self) -> Result<String, String> {
+        if !self.vault_exists() {
+            return Ok("none".to_string());
+        }
+
+        let content = fs::read_to_string(&self.vault_path)
+            .map_err(|e| format!("Failed to read vault: {}", e))?;
+
+        let vault: EncryptedVault =
+            serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
+
+        Ok(vault.kdf.clone())
+    }
+
+    pub fn init_with_key(&mut self, key: &[u8; 32], kdf: &str) -> Result<(), String> {
+        if self.vault_exists() {
+            return Err("Vault already exists".to_string());
+        }
+
+        let vault_data = VaultData {
+            entries: Vec::new(),
+        };
+        let json_data = serde_json::to_string(&vault_data)
+            .map_err(|e| format!("Failed to serialize vault data: {}", e))?;
+
+        let encrypted_data = Self::encrypt_data(key, &json_data)?;
+
+        let vault = EncryptedVault {
+            version: "2".to_string(),
+            kdf: kdf.to_string(),
+            salt: String::new(),
+            data: encrypted_data,
+        };
+
+        let json_vault = serde_json::to_string_pretty(&vault)
+            .map_err(|e| format!("Failed to serialize vault: {}", e))?;
+
+        let tmp_path = self.vault_path.with_extension("enc.tmp");
+        fs::write(&tmp_path, &json_vault)
+            .map_err(|e| format!("Failed to write vault: {}", e))?;
+        fs::rename(&tmp_path, &self.vault_path)
+            .map_err(|e| format!("Failed to rename vault: {}", e))?;
+
+        self.session_key = Some(*key);
+        self.session_start = Some(SystemTime::now());
+        self.entries = Vec::new();
+
+        Ok(())
+    }
+
+    pub fn reencrypt_vault(
+        &mut self,
+        new_key: &[u8; 32],
+        new_kdf: &str,
+        new_salt: &str,
+    ) -> Result<(), String> {
+        self.check_session()?;
+
+        let vault_data = VaultData {
+            entries: self.entries.clone(),
+        };
+        let json_data = serde_json::to_string(&vault_data)
+            .map_err(|e| format!("Failed to serialize vault data: {}", e))?;
+
+        let encrypted_data = Self::encrypt_data(new_key, &json_data)?;
+
+        let vault = EncryptedVault {
+            version: "2".to_string(),
+            kdf: new_kdf.to_string(),
+            salt: new_salt.to_string(),
+            data: encrypted_data,
+        };
+
+        let json_vault = serde_json::to_string_pretty(&vault)
+            .map_err(|e| format!("Failed to serialize vault: {}", e))?;
+
+        let tmp_path = self.vault_path.with_extension("enc.tmp");
+        fs::write(&tmp_path, &json_vault)
+            .map_err(|e| format!("Failed to write vault: {}", e))?;
+        fs::rename(&tmp_path, &self.vault_path)
+            .map_err(|e| format!("Failed to rename vault: {}", e))?;
+
+        self.session_key = Some(*new_key);
+        self.refresh_session();
 
         Ok(())
     }
@@ -390,4 +478,84 @@ fn get_vault_path() -> Result<PathBuf, String> {
     };
 
     Ok(config_dir.join("vault.enc"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn create_test_vault() -> (Vault, tempfile::TempDir) {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let vault_path = temp_dir.path().join("vault.enc");
+        fs::create_dir_all(temp_dir.path()).unwrap();
+
+        let mut vault = Vault {
+            entries: Vec::new(),
+            session_key: None,
+            session_start: None,
+            vault_path,
+        };
+
+        (vault, temp_dir)
+    }
+
+    #[test]
+    fn test_init_with_key() {
+        let (mut vault, _temp) = create_test_vault();
+        assert!(!vault.vault_exists());
+
+        let key = [0u8; 32];
+        vault.init_with_key(&key, "biometric-keychain").unwrap();
+
+        assert!(vault.vault_exists());
+        assert_eq!(vault.get_auth_method().unwrap(), "biometric-keychain");
+        assert!(vault.is_unlocked());
+    }
+
+    #[test]
+    fn test_unlock_with_key_biometric_kdf() {
+        let (mut vault, _temp) = create_test_vault();
+        let key = [1u8; 32];
+        vault.init_with_key(&key, "biometric-keychain").unwrap();
+        vault.lock_vault();
+
+        assert!(!vault.is_unlocked());
+        vault.unlock_with_key(&key).unwrap();
+        assert!(vault.is_unlocked());
+    }
+
+    #[test]
+    fn test_reencrypt_vault() {
+        let (mut vault, _temp) = create_test_vault();
+        let key1 = [1u8; 32];
+        let key2 = [2u8; 32];
+
+        vault.init_with_key(&key1, "biometric-keychain").unwrap();
+        vault.add_entry(Entry {
+            id: "test-id".to_string(),
+            title: "Test".to_string(),
+            username: "user".to_string(),
+            password: "pass".to_string(),
+            url: None,
+            icon_url: None,
+        }).unwrap();
+
+        vault.reencrypt_vault(&key2, "oauth-pbkdf2", "user123").unwrap();
+        assert_eq!(vault.get_auth_method().unwrap(), "oauth-pbkdf2");
+
+        vault.lock_vault();
+        vault.unlock_with_key(&key2).unwrap();
+        assert!(vault.is_unlocked());
+    }
+
+    #[test]
+    fn test_atomic_write_creates_tmp_then_renames() {
+        let (mut vault, _temp) = create_test_vault();
+        let key = [3u8; 32];
+
+        vault.init_with_key(&key, "biometric-keychain").unwrap();
+        assert!(vault.vault_exists());
+        assert!(!vault.vault_path.with_extension("enc.tmp").exists());
+    }
 }

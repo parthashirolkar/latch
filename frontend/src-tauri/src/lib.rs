@@ -63,7 +63,6 @@ pub fn run() {
 
             let vault = Vault::new().expect("Failed to initialize vault");
             app.manage(VaultState(Mutex::new(vault)));
-            app.manage(Mutex::new(biometric::BiometricState { vault_key: None }));
 
             let handle = app.handle().clone();
             app.handle().plugin(
@@ -103,7 +102,12 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             init_vault_oauth,
+            init_vault_with_key,
             unlock_vault_oauth,
+            unlock_vault_with_key,
+            get_vault_auth_method,
+            reencrypt_vault,
+            reencrypt_vault_to_oauth,
             vault_status,
             lock_vault,
             search_entries,
@@ -112,10 +116,6 @@ pub fn run() {
             get_full_entry,
             update_entry,
             delete_entry,
-            enable_biometric_unlock,
-            unlock_with_biometric_key,
-            is_biometric_enabled,
-            disable_biometric_unlock,
             get_auth_preferences,
         ])
         .run(tauri::generate_context!())
@@ -254,69 +254,96 @@ async fn unlock_vault_oauth(
 }
 
 #[tauri::command]
-async fn enable_biometric_unlock(
+async fn init_vault_with_key(
+    key_hex: String,
+    kdf: String,
     state: State<'_, VaultState>,
-    biometric_state: State<'_, Mutex<biometric::BiometricState>>,
 ) -> Result<String, String> {
-    let vault = &mut state.0.lock().unwrap();
-    let mut bio_state = biometric_state.inner().lock().unwrap();
+    let key_bytes = hex::decode(&key_hex)
+        .map_err(|e| format!("Invalid key hex: {}", e))?;
+    if key_bytes.len() != 32 {
+        return Err("Key must be 32 bytes".to_string());
+    }
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&key_bytes);
 
-    biometric::enable_biometric_unlock(vault, &mut bio_state)?;
+    let vault = &mut state.0.lock().unwrap();
+    vault.init_with_key(&key, &kdf)?;
 
     Ok(json!({"status": "success"}).to_string())
 }
 
 #[tauri::command]
-async fn unlock_with_biometric_key(
+async fn unlock_vault_with_key(
+    key_hex: String,
     state: State<'_, VaultState>,
-    biometric_state: State<'_, Mutex<biometric::BiometricState>>,
 ) -> Result<String, String> {
-    let bio_state = biometric_state.inner().lock().unwrap();
-    let key = bio_state
-        .vault_key
-        .ok_or("Biometric not enabled".to_string())?;
-    drop(bio_state);
+    let key_bytes = hex::decode(&key_hex)
+        .map_err(|e| format!("Invalid key hex: {}", e))?;
+    if key_bytes.len() != 32 {
+        return Err("Key must be 32 bytes".to_string());
+    }
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&key_bytes);
 
     let vault = &mut state.0.lock().unwrap();
-    biometric::unlock_with_biometric_key(&key, vault)?;
+    vault.unlock_with_key(&key)?;
 
     Ok(json!({"status": "success"}).to_string())
 }
 
 #[tauri::command]
-async fn is_biometric_enabled(
-    biometric_state: State<'_, Mutex<biometric::BiometricState>>,
-) -> Result<String, String> {
-    let bio_state = biometric_state.inner().lock().unwrap();
-    let enabled = biometric::is_biometric_enabled(&bio_state);
+async fn get_vault_auth_method(state: State<'_, VaultState>) -> Result<String, String> {
+    let vault = state.0.lock().unwrap();
+    let method = vault.get_auth_method().unwrap_or_else(|_| "none".to_string());
 
     Ok(json!({
         "status": "success",
-        "enabled": enabled
+        "auth_method": method
     })
     .to_string())
 }
 
 #[tauri::command]
-async fn disable_biometric_unlock(
-    biometric_state: State<'_, Mutex<biometric::BiometricState>>,
+async fn reencrypt_vault(
+    new_key_hex: String,
+    new_kdf: String,
+    new_salt: String,
+    state: State<'_, VaultState>,
 ) -> Result<String, String> {
-    let mut bio_state = biometric_state.inner().lock().unwrap();
-    biometric::disable_biometric_unlock(&mut bio_state);
+    let key_bytes = hex::decode(&new_key_hex)
+        .map_err(|e| format!("Invalid key hex: {}", e))?;
+    if key_bytes.len() != 32 {
+        return Err("Key must be 32 bytes".to_string());
+    }
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&key_bytes);
+
+    let vault = &mut state.0.lock().unwrap();
+    vault.reencrypt_vault(&key, &new_kdf, &new_salt)?;
 
     Ok(json!({"status": "success"}).to_string())
 }
 
 #[tauri::command]
-async fn get_auth_preferences(
+async fn reencrypt_vault_to_oauth(
+    id_token: String,
     state: State<'_, VaultState>,
-    biometric_state: State<'_, Mutex<biometric::BiometricState>>,
 ) -> Result<String, String> {
-    let bio_state = biometric_state.inner().lock().unwrap();
-    let enabled = biometric::is_biometric_enabled(&bio_state);
-    drop(bio_state);
+    let user_id =
+        get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
+    let key = oauth::derive_key_from_oauth(&user_id)?;
 
+    let vault = &mut state.0.lock().unwrap();
+    vault.reencrypt_vault(&key, "oauth-pbkdf2", &user_id)?;
+
+    Ok(json!({"status": "success"}).to_string())
+}
+
+#[tauri::command]
+async fn get_auth_preferences(state: State<'_, VaultState>) -> Result<String, String> {
     let vault = state.0.lock().unwrap();
+    let auth_method = vault.get_auth_method().unwrap_or_else(|_| "none".to_string());
     let is_unlocked = vault.is_unlocked();
 
     let session_remaining = if is_unlocked {
@@ -331,7 +358,7 @@ async fn get_auth_preferences(
 
     Ok(json!({
         "status": "success",
-        "biometric_enabled": enabled,
+        "auth_method": auth_method,
         "session_valid": is_unlocked,
         "session_remaining_seconds": session_remaining
     })
