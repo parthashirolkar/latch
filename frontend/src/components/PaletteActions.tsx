@@ -1,5 +1,5 @@
 import { LucideIcon } from 'lucide-react'
-import { Key, User, ArrowLeft, LogOut, Edit } from 'lucide-react'
+import { Key, User, ArrowLeft, LogOut, Edit, Dice1, Shield } from 'lucide-react'
 
 export interface Action {
   id: string
@@ -7,6 +7,28 @@ export interface Action {
   subtitle?: string
   icon: LucideIcon
   handler: () => void | Promise<void>
+}
+
+export function createUtilityActions(
+  onPasswordGenerator: () => void,
+  onVaultHealth: () => void
+): Action[] {
+  return [
+    {
+      id: 'password-generator',
+      title: 'Password Generator',
+      subtitle: 'Generate secure passwords',
+      icon: Dice1,
+      handler: onPasswordGenerator,
+    },
+    {
+      id: 'vault-health',
+      title: 'Vault Health',
+      subtitle: 'Check password security',
+      icon: Shield,
+      handler: onVaultHealth,
+    },
+  ]
 }
 
 export function createEntryActions(

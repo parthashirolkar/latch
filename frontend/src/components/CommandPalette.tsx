@@ -7,11 +7,14 @@ import {
   User,
   Key,
   Loader2,
-  Trash2
+  Trash2,
+  Shield,
+  Dice1,
+  Activity
 } from 'lucide-react'
 import PaletteInput from './PaletteInput'
 import PaletteList, { PaletteListItem } from './PaletteList'
-import { createEntryActions, Action } from './PaletteActions'
+import { createEntryActions, createUtilityActions, Action } from './PaletteActions'
 import { useKeyboardNav } from '../hooks/useKeyboardNav'
 import { fetchFavicon } from '../utils/favicon'
 import OAuthSignIn from './OAuthSignIn'
@@ -19,8 +22,13 @@ import BiometricSignIn from './BiometricSignIn'
 import AuthSelector from './AuthSelector'
 import MigrateVault from './MigrateVault'
 import Settings from './Settings'
+import PasswordGenerator from './PasswordGenerator'
+import VaultHealth from './VaultHealth'
+import WeakPasswordsList from './health/WeakPasswordsList'
+import ReusedPasswordsList from './health/ReusedPasswordsList'
+import BreachedCredentialsList from './health/BreachedCredentialsList'
 
-type PaletteMode = 'search' | 'actions' | 'add-entry' | 'edit-entry' | 'delete-confirm' | 'auth-selector' | 'oauth-setup' | 'oauth-login' | 'biometric-setup' | 'biometric-login' | 'migrate' | 'settings'
+type PaletteMode = 'search' | 'actions' | 'add-entry' | 'edit-entry' | 'delete-confirm' | 'auth-selector' | 'oauth-setup' | 'oauth-login' | 'biometric-setup' | 'biometric-login' | 'migrate' | 'settings' | 'password-generator' | 'vault-health' | 'health-weak' | 'health-reused' | 'health-breached'
 
 interface Entry {
   id: string
@@ -50,6 +58,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null)
   const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
   const [entryToEdit, setEntryToEdit] = useState<Entry | null>(null)
+  const [entryForGenerator, setEntryForGenerator] = useState<Entry | null>(null)
   const paletteRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -197,6 +206,16 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       setMode('add-entry')
       setFormData({ title: inputValue, username: '', password: '', url: '' })
       setError('')
+    } else if (mode === 'search' && inputValue.length === 0) {
+      setActions(createUtilityActions(
+        () => {
+          setEntryForGenerator(null)
+          setMode('password-generator')
+        },
+        () => setMode('vault-health')
+      ))
+      setMode('actions')
+      setSelectedIndex(0)
     } else if (mode === 'actions') {
       actions[selectedIndex].handler()
     } else if (mode === 'add-entry' || mode === 'edit-entry') {
@@ -263,6 +282,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     } else if (mode === 'add-entry' || mode === 'edit-entry') {
       setFormData({ title: '', username: '', password: '', url: '' })
       setEntryToEdit(null)
+      setEntryForGenerator(null)
       setMode('search')
       setError('')
     } else if (mode === 'delete-confirm') {
@@ -270,6 +290,13 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       setEntryToDelete(null)
     } else if (mode === 'settings') {
       setMode('search')
+    } else if (mode === 'password-generator') {
+      setEntryForGenerator(null)
+      setMode('search')
+    } else if (mode === 'vault-health') {
+      setMode('search')
+    } else if (mode === 'health-weak' || mode === 'health-reused' || mode === 'health-breached') {
+      setMode('vault-health')
     } else if (mode === 'oauth-setup' || mode === 'biometric-setup') {
       setMode('auth-selector')
       setError('')
@@ -320,7 +347,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     onSelectedIndexChange: setSelectedIndex,
     onEnter: handleEnterKey,
     onEscape: handleEscape,
-    enabled: mode === 'search' || mode === 'actions' || mode === 'add-entry' || mode === 'edit-entry' || mode === 'delete-confirm',
+    enabled: mode === 'search' || mode === 'actions' || mode === 'add-entry' || mode === 'edit-entry' || mode === 'delete-confirm' || mode === 'settings' || mode === 'vault-health' || mode === 'health-weak' || mode === 'health-reused' || mode === 'health-breached' || mode === 'password-generator',
   })
 
   useEffect(() => {
@@ -355,14 +382,30 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       } else if ((e.metaKey || e.ctrlKey) && e.key === 'l' && mode === 'search') {
         e.preventDefault()
         handleLock()
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'g' && mode === 'search') {
+        e.preventDefault()
+        setEntryForGenerator(null)
+        setMode('password-generator')
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'h' && mode === 'search') {
+        e.preventDefault()
+        setMode('vault-health')
       } else if (e.key === ',' && mode === 'search') {
         e.preventDefault()
         setMode('settings')
-      } else if (e.key === 'Escape' && mode === 'settings') {
+      } else if (e.key === 'Escape') {
         e.preventDefault()
-        setMode('search')
-        setInputValue('')
-        setSearchResults([])
+        if (mode === 'settings') {
+          setMode('search')
+          setInputValue('')
+          setSearchResults([])
+        } else if (mode === 'vault-health') {
+          setMode('search')
+        } else if (mode === 'health-weak' || mode === 'health-reused' || mode === 'health-breached') {
+          setMode('vault-health')
+        } else if (mode === 'password-generator') {
+          setEntryForGenerator(null)
+          setMode('search')
+        }
       }
     }
 
@@ -370,39 +413,53 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [hoveredEntryId, mode, searchResults])
 
-  const getPlaceholder = () => {
-    switch (mode) {
-      case 'search':
-        return 'Search passwords...'
-      case 'actions':
-        return 'Actions...'
-      case 'add-entry':
-        return ''
-      case 'edit-entry':
-        return ''
-      case 'delete-confirm':
-        return 'Confirm deletion...'
-      default:
-        return ''
+   const getPlaceholder = () => {
+     switch (mode) {
+       case 'search':
+         return inputValue ? 'Search passwords...' : 'Type to search...'
+       case 'actions':
+         return 'Select an action...'
+       case 'add-entry':
+         return ''
+       case 'edit-entry':
+         return ''
+       case 'delete-confirm':
+         return 'Confirm deletion...'
+        case 'password-generator':
+        case 'vault-health':
+        case 'health-weak':
+        case 'health-reused':
+        case 'health-breached':
+          return ''
+        default:
+          return ''
+      }
     }
-  }
 
-  const getIcon = () => {
-    if (mode === 'oauth-setup' && isUnlocking) {
-      return Loader2
+   const getIcon = () => {
+     if (mode === 'oauth-setup' && isUnlocking) {
+       return Loader2
+     }
+     switch (mode) {
+       case 'oauth-setup':
+       case 'biometric-setup':
+         return Lock
+       case 'search':
+         return Search
+       case 'vault-health':
+         return Shield
+       case 'password-generator':
+         return Dice1
+       case 'health-weak':
+       case 'health-reused':
+       case 'health-breached':
+         return Activity
+        default:
+          return Search
+      }
     }
-    switch (mode) {
-      case 'oauth-setup':
-      case 'biometric-setup':
-        return Lock
-      case 'search':
-        return Search
-      default:
-        return Search
-    }
-  }
 
-  const handleOAuthSuccess = () => {
+   const handleOAuthSuccess = () => {
     setMode('search')
     setInputValue('')
     setError('')
@@ -470,10 +527,85 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
           onSuccess={handleOAuthSuccess}
           onError={handleOAuthError}
         />
-      ) : mode === 'migrate' ? (
-        <MigrateVault onSuccess={handleOAuthSuccess} onError={handleOAuthError} />
-      ) : mode === 'settings' ? (
-        <Settings />
+       ) : mode === 'migrate' ? (
+         <MigrateVault onSuccess={handleOAuthSuccess} onError={handleOAuthError} />
+       ) : mode === 'settings' ? (
+         <Settings />
+       ) : mode === 'password-generator' ? (
+         <PasswordGenerator
+           onPasswordSelect={(password) => {
+             if (entryForGenerator) {
+               setEntryToEdit(entryForGenerator)
+               setFormData({...formData, password})
+               setMode('edit-entry')
+             } else {
+               setFormData({...formData, password})
+             }
+           }}
+           onCancel={() => {
+             if (entryForGenerator) {
+               setEntryForGenerator(null)
+               setMode('edit-entry')
+             } else {
+               setMode('add-entry')
+             }
+           }}
+           initialLength={16}
+         />
+        ) : mode === 'vault-health' ? (
+          <VaultHealth
+            onWeakPasswords={() => setMode('health-weak')}
+            onReusedPasswords={() => setMode('health-reused')}
+            onBreachedCredentials={() => setMode('health-breached')}
+          />
+       ) : mode === 'health-weak' ? (
+          <WeakPasswordsList
+            onSelectEntry={(entryId) => {
+              const entry = searchResults.find(e => e.id === entryId)
+              if (entry) {
+                setEntryToEdit(entry)
+                setFormData({
+                  title: entry.title,
+                  username: entry.username,
+                  password: '',
+                  url: entry.icon_url || ''
+                })
+                setMode('edit-entry')
+              }
+            }}
+          />
+        ) : mode === 'health-reused' ? (
+          <ReusedPasswordsList
+            onSelectEntry={(entryId) => {
+              const entry = searchResults.find(e => e.id === entryId)
+              if (entry) {
+                setEntryToEdit(entry)
+                setFormData({
+                  title: entry.title,
+                  username: entry.username,
+                  password: '',
+                  url: entry.icon_url || ''
+                })
+                setMode('edit-entry')
+              }
+            }}
+          />
+       ) : mode === 'health-breached' ? (
+          <BreachedCredentialsList
+            onSelectEntry={(entryId) => {
+              const entry = searchResults.find(e => e.id === entryId)
+             if (entry) {
+               setEntryToEdit(entry)
+               setFormData({
+                 title: entry.title,
+                 username: entry.username,
+                 password: '',
+                 url: entry.icon_url || ''
+               })
+               setMode('edit-entry')
+             }
+           }}
+         />
       ) : (
         <>
           <PaletteInput
@@ -506,11 +638,11 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
             <div className="palette-footer">
               {searchResults.length > 0 ? (
                 <span className="palette-footer-hint">
-                  <kbd>↑↓</kbd> Navigate <kbd>Enter</kbd> Select <kbd>Shift+Backspace</kbd> Delete <kbd>Esc</kbd> Clear <kbd>,</kbd> Settings
+                  <kbd>↑↓</kbd> Navigate <kbd>Enter</kbd> Select <kbd>Shift+Backspace</kbd> Delete <kbd>Esc</kbd> Clear <kbd>,</kbd> Settings <kbd>Ctrl+H</kbd> Health
                 </span>
               ) : (
                 <span className="palette-footer-hint">
-                  <kbd>Enter</kbd> Add New Password <kbd>Esc</kbd> Hide <kbd>,</kbd> Settings
+                  <kbd>Enter</kbd> Add New Password <kbd>Esc</kbd> Hide <kbd>Ctrl+G</kbd> Generate <kbd>Ctrl+H</kbd> Health <kbd>,</kbd> Settings
                 </span>
               )}
             </div>
