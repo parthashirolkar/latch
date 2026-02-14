@@ -9,11 +9,9 @@ pub struct GoogleIdToken {
 }
 
 fn get_app_secret() -> String {
-    env::var("LATCH_OAUTH_SECRET").unwrap_or_else(|_| {
-        // Fallback for development - NOT FOR PRODUCTION
-        // This is only used if env var is not set
-        "latch-dev-secret-32bytes-long!!".to_string()
-    })
+    env::var("LATCH_OAUTH_SECRET")
+        .map_err(|_| "LATCH_OAUTH_SECRET environment variable not set. Please set it for production use.".to_string())
+        .unwrap()
 }
 
 pub fn derive_key_from_oauth(user_id: &str) -> Result<[u8; 32], String> {

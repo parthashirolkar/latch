@@ -326,10 +326,8 @@ impl Vault {
             return Err("Vault was created with an unsupported authentication method. Please create a new vault.".to_string());
         }
 
-        if vault.salt != user_id {
-            return Err("Wrong user account".to_string());
-        }
-
+        // Derive key and attempt decryption without early user_id validation
+        // This prevents timing attacks that could enumerate valid user IDs
         let key = derive_key_from_oauth(user_id)?;
 
         let decrypted = Self::decrypt_data(&key, &vault.data)?;
@@ -355,7 +353,7 @@ impl Vault {
         let vault: EncryptedVault =
             serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
 
-        if vault.kdf != "oauth-pbkdf2" && vault.kdf != "biometric-keychain" {
+        if vault.kdf != "oauth-pbkdf2" && vault.kdf != "oauth-argon2id" && vault.kdf != "biometric-keychain" {
             return Err("Unknown vault authentication method".to_string());
         }
 
@@ -481,6 +479,11 @@ mod tests {
     use super::*;
     use std::fs;
 
+    // Load .env file for OAuth tests
+    fn load_env_for_tests() {
+        let _ = dotenvy::dotenv();
+    }
+
     fn create_test_vault() -> (Vault, tempfile::TempDir) {
         let temp_dir = tempfile::tempdir().unwrap();
         let vault_path = temp_dir.path().join("vault.enc");
@@ -561,6 +564,7 @@ mod tests {
 
     #[test]
     fn test_init_with_oauth() {
+        load_env_for_tests();
         let (mut vault, _temp) = create_test_vault();
         assert!(!vault.vault_exists());
 
@@ -575,6 +579,7 @@ mod tests {
 
     #[test]
     fn test_unlock_with_oauth() {
+        load_env_for_tests();
         let (mut vault, _temp) = create_test_vault();
         let user_id = "test_user_id";
 
