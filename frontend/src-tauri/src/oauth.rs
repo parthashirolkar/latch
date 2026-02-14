@@ -10,7 +10,10 @@ pub struct GoogleIdToken {
 
 fn get_app_secret() -> String {
     env::var("LATCH_OAUTH_SECRET")
-        .map_err(|_| "LATCH_OAUTH_SECRET environment variable not set. Please set it for production use.".to_string())
+        .map_err(|_| {
+            "LATCH_OAUTH_SECRET environment variable not set. Please set it for production use."
+                .to_string()
+        })
         .unwrap()
 }
 

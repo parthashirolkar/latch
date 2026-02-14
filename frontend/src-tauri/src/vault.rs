@@ -353,7 +353,10 @@ impl Vault {
         let vault: EncryptedVault =
             serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
 
-        if vault.kdf != "oauth-pbkdf2" && vault.kdf != "oauth-argon2id" && vault.kdf != "biometric-keychain" {
+        if vault.kdf != "oauth-pbkdf2"
+            && vault.kdf != "oauth-argon2id"
+            && vault.kdf != "biometric-keychain"
+        {
             return Err("Unknown vault authentication method".to_string());
         }
 
