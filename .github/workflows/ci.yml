@@ -93,6 +93,8 @@ jobs:
 
       - name: Run cargo check, test, and clippy
         working-directory: ./frontend/src-tauri
+        env:
+          LATCH_OAUTH_SECRET: test-secret-for-ci
         run: |
           cargo check --all-targets
           cargo test --all-targets
