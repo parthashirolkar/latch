@@ -109,8 +109,6 @@ pub async fn check_breach_status(entries: &[Entry]) -> Vec<BreachedCredential> {
     let mut breached_credentials = Vec::new();
 
     for entry in entries {
-        let _hash_prefix = get_breach_hash_prefix(&entry.password);
-
         if let Some(breach_data) = check_single_breach(&entry.password).await {
             if breach_data.count > 0 {
                 breached_credentials.push(BreachedCredential {
@@ -125,16 +123,6 @@ pub async fn check_breach_status(entries: &[Entry]) -> Vec<BreachedCredential> {
 
     breached_credentials.sort_by(|a, b| b.breach_count.cmp(&a.breach_count));
     breached_credentials
-}
-
-fn get_breach_hash_prefix(password: &str) -> String {
-    let hash = Sha1::digest(password.as_bytes());
-    let hash_hex = format!("{:x}", hash);
-    hash_prefix_to_anonymous(&hash_hex)
-}
-
-fn hash_prefix_to_anonymous(hash: &str) -> String {
-    hash[..5].to_uppercase()
 }
 
 async fn check_single_breach(password: &str) -> Option<BreachResult> {
@@ -170,10 +158,7 @@ async fn check_single_breach(password: &str) -> Option<BreachResult> {
         }
     }
 
-    Some(BreachResult {
-        hash_suffix: suffix.to_string(),
-        count: 0,
-    })
+    None
 }
 
 pub fn calculate_vault_health_score(
@@ -308,20 +293,6 @@ mod tests {
         assert!(!report.weak_passwords.is_empty());
         assert!(!report.reused_passwords.is_empty());
         assert!(report.overall_score < 100);
-    }
-
-    #[test]
-    fn test_get_breach_hash_prefix() {
-        let prefix = get_breach_hash_prefix("password");
-        assert_eq!(prefix.len(), 5);
-        assert!(prefix.chars().all(|c| c.is_ascii_hexdigit()));
-    }
-
-    #[test]
-    fn test_hash_prefix_to_anonymous() {
-        let hash = "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8";
-        let prefix = hash_prefix_to_anonymous(hash);
-        assert_eq!(prefix, "5BAA6");
     }
 
     #[tokio::test]
