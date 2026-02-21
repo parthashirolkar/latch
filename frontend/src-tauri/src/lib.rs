@@ -400,10 +400,12 @@ async fn analyze_password_strength(password: String) -> Result<String, String> {
 
 #[tauri::command]
 async fn check_vault_health(state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = &state.0.lock().unwrap();
-    let entries = vault.get_entries();
+    let entries = {
+        let vault = &state.0.lock().unwrap();
+        vault.get_entries().clone()
+    };
 
-    let report = vault_health::check_vault_health(&entries);
+    let report = vault_health::check_vault_health(&entries).await;
 
     Ok(json!({
         "status": "success",
