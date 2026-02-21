@@ -1,5 +1,7 @@
 mod oauth;
+mod password_generator;
 mod vault;
+mod vault_health;
 
 use oauth::get_user_id_from_token;
 use serde_json::json;
@@ -121,6 +123,9 @@ pub fn run() {
             update_entry,
             delete_entry,
             get_auth_preferences,
+            generate_password,
+            analyze_password_strength,
+            check_vault_health,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -362,11 +367,49 @@ async fn get_auth_preferences(state: State<'_, VaultState>) -> Result<String, St
         0
     };
 
-    Ok(json!({
+    Ok(json!( {
         "status": "success",
         "auth_method": auth_method,
         "session_valid": is_unlocked,
         "session_remaining_seconds": session_remaining
+    })
+    .to_string())
+}
+
+#[tauri::command]
+async fn generate_password(options: password_generator::PasswordOptions) -> Result<String, String> {
+    let password = password_generator::generate_password(&options)?;
+
+    Ok(json!({
+        "status": "success",
+        "password": password
+    })
+    .to_string())
+}
+
+#[tauri::command]
+async fn analyze_password_strength(password: String) -> Result<String, String> {
+    let report = password_generator::analyze_password_strength(&password);
+
+    Ok(json!({
+        "status": "success",
+        "report": report
+    })
+    .to_string())
+}
+
+#[tauri::command]
+async fn check_vault_health(state: State<'_, VaultState>) -> Result<String, String> {
+    let entries = {
+        let vault = &state.0.lock().unwrap();
+        vault.get_entries().clone()
+    };
+
+    let report = vault_health::check_vault_health(&entries).await;
+
+    Ok(json!({
+        "status": "success",
+        "report": report
     })
     .to_string())
 }

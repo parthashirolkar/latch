@@ -150,6 +150,10 @@ impl Vault {
         self.session_key.is_some()
     }
 
+    pub fn get_entries(&self) -> Vec<Entry> {
+        self.entries.clone()
+    }
+
     pub fn search_entries(&mut self, query: &str) -> Result<Vec<EntryPreview>, String> {
         self.check_session()?;
         self.refresh_session();
