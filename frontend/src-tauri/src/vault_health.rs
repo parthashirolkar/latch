@@ -142,8 +142,35 @@ fn check_single_breach(password: &str) -> Option<BreachResult> {
     let hash_hex = format!("{:x}", hash);
     let hash_upper = hash_hex.to_uppercase();
 
+    let prefix = &hash_upper[..5];
+    let suffix = &hash_upper[5..];
+
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .ok()?;
+
+    let response = client
+        .get(format!("https://api.pwnedpasswords.com/range/{}", prefix))
+        .header("User-Agent", "Latch-Password-Manager")
+        .send()
+        .ok()?;
+
+    let body = response.text().ok()?;
+
+    for line in body.lines() {
+        let parts: Vec<&str> = line.split(':').collect();
+        if parts.len() == 2 && parts[0].eq_ignore_ascii_case(suffix) {
+            let count: u32 = parts[1].trim().parse().unwrap_or(0);
+            return Some(BreachResult {
+                hash_suffix: suffix.to_string(),
+                count,
+            });
+        }
+    }
+
     Some(BreachResult {
-        hash_suffix: hash_upper[5..].to_string(),
+        hash_suffix: suffix.to_string(),
         count: 0,
     })
 }
@@ -294,5 +321,13 @@ mod tests {
         let hash = "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8";
         let prefix = hash_prefix_to_anonymous(hash);
         assert_eq!(prefix, "5BAA6");
+    }
+
+    #[test]
+    #[ignore = "Requires network access"]
+    fn test_check_single_breach_known_password() {
+        let result = check_single_breach("password");
+        assert!(result.is_some());
+        assert!(result.unwrap().count > 0);
     }
 }
