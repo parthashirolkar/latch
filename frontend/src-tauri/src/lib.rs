@@ -47,6 +47,11 @@ fn setup_system_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>>
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Load .env file in development
+    if cfg!(debug_assertions) {
+        dotenvy::dotenv().ok();
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_google_auth::init())
@@ -334,7 +339,7 @@ async fn reencrypt_vault_to_oauth(
     let key = oauth::derive_key_from_oauth(&user_id)?;
 
     let vault = &mut state.0.lock().unwrap();
-    vault.reencrypt_vault(&key, "oauth-pbkdf2", &user_id)?;
+    vault.reencrypt_vault(&key, "oauth-argon2id", &user_id)?;
 
     Ok(json!({"status": "success"}).to_string())
 }

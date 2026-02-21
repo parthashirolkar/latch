@@ -8,7 +8,7 @@ import {
 } from '../utils/biometricKeys'
 import ConfirmationModal from './ConfirmationModal'
 
-type AuthMethod = 'oauth-pbkdf2' | 'biometric-keychain'
+type AuthMethod = 'oauth-pbkdf2' | 'oauth-argon2id' | 'biometric-keychain'
 
 interface AuthPreferences {
   auth_method: string
@@ -19,6 +19,7 @@ interface AuthPreferences {
 function getAuthMethodLabel(authMethod: string): string {
   switch (authMethod) {
     case 'oauth-pbkdf2':
+    case 'oauth-argon2id':
       return 'Google OAuth'
     case 'biometric-keychain':
       return 'Biometric Authentication'
@@ -77,7 +78,7 @@ function Settings() {
       })
       setLiveRemainingSeconds(sessionValid && remaining > 0 ? remaining : null)
       setSelectedMethod(
-        authMethod === 'biometric-keychain' ? 'biometric-keychain' : 'oauth-pbkdf2'
+        authMethod === 'biometric-keychain' ? 'biometric-keychain' : authMethod === 'oauth-argon2id' ? 'oauth-argon2id' : 'oauth-pbkdf2'
       )
 
       const status = await checkStatus()
@@ -255,13 +256,13 @@ function Settings() {
             </span>
           </label>
           <label
-            className={`settings-radio-option ${selectedMethod === 'oauth-pbkdf2' ? 'selected' : ''}`}
+            className={`settings-radio-option ${selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'selected' : ''}`}
           >
             <input
               type="radio"
               name="auth-method"
               value="oauth-pbkdf2"
-              checked={selectedMethod === 'oauth-pbkdf2'}
+              checked={selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id'}
               onChange={() => setSelectedMethod('oauth-pbkdf2')}
               disabled={switching}
             />
