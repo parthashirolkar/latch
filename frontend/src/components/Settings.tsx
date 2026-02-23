@@ -56,6 +56,9 @@ function Settings() {
     body: string
     date: string
   } | null>(null)
+  const [downloadProgress, setDownloadProgress] = useState(0)
+  const [totalDownloadSize, setTotalDownloadSize] = useState(0)
+  const [isDownloading, setIsDownloading] = useState(false)
 
   useEffect(() => {
     loadPreferences()
@@ -134,13 +137,20 @@ function Settings() {
         )
         
         if (shouldUpdate) {
+          setIsDownloading(true)
+          setDownloadProgress(0)
+          setTotalDownloadSize(0)
+          
           await update.downloadAndInstall((event) => {
             switch (event.event) {
               case 'Started':
+                setTotalDownloadSize(event.data.contentLength || 0)
                 break
               case 'Progress':
+                setDownloadProgress((prev) => prev + (event.data.chunkLength || 0))
                 break
               case 'Finished':
+                setDownloadProgress((prev) => totalDownloadSize || prev)
                 break
             }
           })
@@ -155,9 +165,17 @@ function Settings() {
     } catch (err) {
       console.error('Failed to check for updates:', err)
       setUpdateAvailable(false)
-      await message(`You're already on the latest version (${appVersion}).`, { title: 'Up to Date', kind: 'info' })
+      
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network') || errorMessage.includes('ECONNREFUSED')) {
+        await message('Unable to check for updates. Please check your internet connection and try again.', { title: 'Network Error', kind: 'error' })
+      } else {
+        await message(`You're already on the latest version (${appVersion}).`, { title: 'Up to Date', kind: 'info' })
+      }
     } finally {
       setCheckingUpdate(false)
+      setIsDownloading(false)
     }
   }
 
@@ -387,12 +405,33 @@ function Settings() {
           <button
             className="settings-button settings-button-primary"
             onClick={checkForUpdates}
-            disabled={checkingUpdate || switching}
+            disabled={checkingUpdate || isDownloading || switching}
             style={{ width: '100%', justifyContent: 'center' }}
           >
-            {checkingUpdate ? 'Checking…' : 'Check for Updates'}
+            {checkingUpdate ? 'Checking…' : isDownloading ? 'Downloading…' : 'Check for Updates'}
           </button>
-          {updateAvailable && updateInfo && (
+          {isDownloading && totalDownloadSize > 0 && (
+            <div style={{ marginTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px', opacity: 0.8 }}>
+                <span>Downloading update...</span>
+                <span>{Math.round((downloadProgress / totalDownloadSize) * 100)}%</span>
+              </div>
+              <div style={{ width: '100%', height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div 
+                  style={{ 
+                    width: `${Math.min((downloadProgress / totalDownloadSize) * 100, 100)}%`, 
+                    height: '100%', 
+                    background: 'var(--accent-color)', 
+                    transition: 'width 0.2s ease' 
+                  }} 
+                />
+              </div>
+              <div style={{ fontSize: '11px', opacity: 0.6, marginTop: '4px' }}>
+                {(downloadProgress / (1024 * 1024)).toFixed(1)} MB / {(totalDownloadSize / (1024 * 1024)).toFixed(1)} MB
+              </div>
+            </div>
+          )}
+          {updateAvailable && updateInfo && !isDownloading && (
             <div className="settings-update-info" style={{ marginTop: '12px', padding: '12px', background: 'var(--highlight-bg)', borderRadius: '8px', fontSize: '14px' }}>
               <div style={{ fontWeight: 600, marginBottom: '4px' }}>Update Available: v{updateInfo.version}</div>
               <div style={{ opacity: 0.8 }}>{updateInfo.body}</div>
