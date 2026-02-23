@@ -38,6 +38,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -45,5 +46,18 @@
       "icons/icon.icns",
       "icons/password.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVFREU1RTQ0NDk3RTRFQjQKUldTMFRuNUpSRjdlN3J1VlliS0trQVdVODdpeTJQb0pzSnBieXJjTGlTYjhWOFlQcHo2VEJSVDIK",
+      "endpoints": [
+        "https://github.com/parthashirolkar/latch/releases/latest/download/latest.json"
+      ]
+    },
+    "biometric": {
+      "i18n": {
+        "allowed": true
+      }
+    }
   }
 }

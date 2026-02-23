@@ -10,6 +10,9 @@
     "core:window:allow-hide",
     "core:window:allow-show",
     "google-auth:default",
-    "biometry:default"
+    "biometry:default",
+    "updater:default",
+    "dialog:default",
+    "process:allow-restart"
   ]
 }

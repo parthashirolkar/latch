@@ -9,6 +9,9 @@ Thumbs.db
 *.swo
 *~
 
+# AI tools
+.claude/
+
 # Build outputs
 dist/
 build/

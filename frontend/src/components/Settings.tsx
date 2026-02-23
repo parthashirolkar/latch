@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { check } from '@tauri-apps/plugin-updater'
+import { ask, message } from '@tauri-apps/plugin-dialog'
+import { relaunch } from '@tauri-apps/plugin-process'
+import { getVersion } from '@tauri-apps/api/app'
 import { signIn } from '@choochmeque/tauri-plugin-google-auth-api'
 import { checkStatus } from '@choochmeque/tauri-plugin-biometry-api'
 import {
@@ -44,9 +48,18 @@ function Settings() {
     message: string
     onConfirm: () => void
   } | null>(null)
+  const [appVersion, setAppVersion] = useState<string>('')
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [updateAvailable, setUpdateAvailable] = useState(false)
+  const [updateInfo, setUpdateInfo] = useState<{
+    version: string
+    body: string
+    date: string
+  } | null>(null)
 
   useEffect(() => {
     loadPreferences()
+    loadVersion()
   }, [])
 
   useEffect(() => {
@@ -88,6 +101,63 @@ function Settings() {
       setError('Failed to load settings')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadVersion = async () => {
+    try {
+      const version = await getVersion()
+      setAppVersion(version)
+    } catch (err) {
+      console.error('Failed to get version:', err)
+    }
+  }
+
+  const checkForUpdates = async () => {
+    try {
+      setCheckingUpdate(true)
+      setError('')
+      
+      const update = await check()
+      
+      if (update?.available) {
+        setUpdateAvailable(true)
+        setUpdateInfo({
+          version: update.version || 'Unknown',
+          body: update.body || 'No release notes available.',
+          date: update.date || ''
+        })
+        
+        const shouldUpdate = await ask(
+          `Version ${update.version} is available. You're currently on version ${appVersion}. \n\nRelease notes:\n${update.body}\n\nWould you like to install this update?`,
+          { title: 'Update Available', kind: 'info' }
+        )
+        
+        if (shouldUpdate) {
+          await update.downloadAndInstall((event) => {
+            switch (event.event) {
+              case 'Started':
+                break
+              case 'Progress':
+                break
+              case 'Finished':
+                break
+            }
+          })
+          
+          await message('Update downloaded successfully! The app will now restart to install the update.', { kind: 'info' })
+          await relaunch()
+        }
+      } else {
+        setUpdateAvailable(false)
+        await message(`You're already on the latest version (${appVersion}).`, { title: 'Up to Date', kind: 'info' })
+      }
+    } catch (err) {
+      console.error('Failed to check for updates:', err)
+      setUpdateAvailable(false)
+      await message(`You're already on the latest version (${appVersion}).`, { title: 'Up to Date', kind: 'info' })
+    } finally {
+      setCheckingUpdate(false)
     }
   }
 
@@ -301,6 +371,34 @@ function Settings() {
         <p className="settings-footnote">
           Vault is encrypted locally. No backup. Lost access = lost data.
         </p>
+      </div>
+
+      <div className="settings-section" style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
+        <header className="settings-header" style={{ marginBottom: '16px' }}>
+          <h2>Updates</h2>
+          <div className="settings-header-meta">
+            <span className="settings-current-badge">v{appVersion}</span>
+          </div>
+        </header>
+        <div className="settings-body">
+          <p className="settings-instruction" style={{ marginBottom: '12px' }}>
+            Check for updates to get the latest features and security improvements.
+          </p>
+          <button
+            className="settings-button settings-button-primary"
+            onClick={checkForUpdates}
+            disabled={checkingUpdate || switching}
+            style={{ width: '100%', justifyContent: 'center' }}
+          >
+            {checkingUpdate ? 'Checking…' : 'Check for Updates'}
+          </button>
+          {updateAvailable && updateInfo && (
+            <div className="settings-update-info" style={{ marginTop: '12px', padding: '12px', background: 'var(--highlight-bg)', borderRadius: '8px', fontSize: '14px' }}>
+              <div style={{ fontWeight: 600, marginBottom: '4px' }}>Update Available: v{updateInfo.version}</div>
+              <div style={{ opacity: 0.8 }}>{updateInfo.body}</div>
+            </div>
+          )}
+        </div>
       </div>
 
       {error && <div className="settings-error">{error}</div>}

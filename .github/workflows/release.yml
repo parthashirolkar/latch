@@ -47,6 +47,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
         with:
           projectPath: frontend
           tagName: v__VERSION__
@@ -55,3 +56,18 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Upload updater artifacts
+        shell: bash
+        run: |
+          # Find and upload the updater JSON files
+          if [ -d "frontend/src-tauri/target/updater" ]; then
+            for platform_json in frontend/src-tauri/target/updater/*.json; do
+              if [ -f "$platform_json" ]; then
+                platform_name=$(basename "$platform_json" .json)
+                gh release upload v__VERSION__ "$platform_json" --repo ${{ github.repository }}
+              fi
+            done
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
