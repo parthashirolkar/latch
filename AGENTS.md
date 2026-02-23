@@ -36,7 +36,6 @@ cd frontend
 
 # 1. Type check
 bun run typecheck
-
 ```
 
 **Common CI Failures to Avoid:**
@@ -69,7 +68,9 @@ bun run typecheck
 5. **No password recovery** - Forgotten master password = lost data (by design)
 6. **Cross-platform** - Vault file format identical across Windows/macOS/Linux
 
-## UI Architecture
+## Tool Pruning
+- **ONLY** remove tool context after completing logical sections of the task you've been given and only irrelevant tool calls should be discarded.
+- NOTHING MORE, NOTHING LESS.
 
 ### Command Palette Pattern
 The app uses a Raycast-style single-window command palette interface with mode-based navigation
