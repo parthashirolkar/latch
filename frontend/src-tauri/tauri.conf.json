@@ -42,7 +42,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVFREU1RTQ0NDk3RTRFQjQKUldTMFRuNUpSRjdlN3J1VlliS0trQVdVODdpeTJQb0pzSnBieXJjTGlTYjhWOFlQcHo2VEJSVDIK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFFMjkwNkI4OUEzNjc0QTEKUldTaGREYWF1QVlwSG4vbmdDYU1vVWM0alFUeFNpMFl4enY4WCsrN3hWcE5iWjgxSENCNFh0S2gK",
       "endpoints": [
         "https://github.com/parthashirolkar/latch/releases/latest/download/latest.json"
       ]
