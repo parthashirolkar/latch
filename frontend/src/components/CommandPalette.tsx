@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { z } from 'zod'
 import {
   Search,
   Lock,
@@ -27,6 +28,55 @@ import VaultHealth from './VaultHealth'
 import WeakPasswordsList from './health/WeakPasswordsList'
 import ReusedPasswordsList from './health/ReusedPasswordsList'
 import BreachedCredentialsList from './health/BreachedCredentialsList'
+
+const EntrySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  username: z.string(),
+  password: z.string(),
+  url: z.string().optional(),
+  icon_url: z.string().optional()
+})
+
+const EntryPreviewSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  username: z.string(),
+  icon_url: z.string().optional()
+})
+
+const EntriesSchema = z.array(EntryPreviewSchema)
+
+const ErrorResponseSchema = z.object({
+  status: z.literal('error'),
+  message: z.string()
+})
+
+const SuccessResponseSchema = z.object({
+  status: z.literal('success'),
+  message: z.string().optional()
+})
+
+const SecretResponseSchema = z.discriminatedUnion('status', [
+  z.object({
+    status: z.literal('success'),
+    value: z.string()
+  }),
+  z.object({
+    status: z.literal('error'),
+    message: z.string()
+  })
+])
+
+const ResponseSchema = z.discriminatedUnion('status', [
+  SuccessResponseSchema,
+  ErrorResponseSchema
+])
+
+const AuthMethodResponseSchema = z.object({
+  status: z.string(),
+  auth_method: z.string()
+})
 
 type PaletteMode = 'search' | 'actions' | 'add-entry' | 'edit-entry' | 'delete-confirm' | 'auth-selector' | 'oauth-setup' | 'oauth-login' | 'biometric-setup' | 'biometric-login' | 'migrate' | 'settings' | 'password-generator' | 'vault-health' | 'health-weak' | 'health-reused' | 'health-breached'
 
@@ -73,18 +123,13 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
 
     try {
       const result = await invoke('search_entries', { query })
-      const entries = JSON.parse(result as string)
-      console.log('Search results:', entries)
-
-      if (Array.isArray(entries)) {
-        setSearchResults(entries)
-      } else if (entries.status === 'error') {
-        console.error('Search failed:', entries.message)
-        if (entries.message?.includes('locked')) {
-          setModeToLogin()
-        }
-      }
+      const entries = EntriesSchema.parse(JSON.parse(result as string))
+      setSearchResults(entries)
     } catch (error) {
+      const err = error as { message: string }
+      if (err.message?.includes('locked')) {
+        setModeToLogin()
+      }
       console.error('Search failed:', error)
       setSearchResults([])
     }
@@ -93,14 +138,14 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const handleCopyPassword = async (entryId: string) => {
     try {
       const result = await invoke('request_secret', { entryId, field: 'password' })
-      const response = JSON.parse(result as string)
+      const response = SecretResponseSchema.parse(JSON.parse(result as string))
 
-      if (response.status === 'success' && response.value) {
+      if (response.status === 'success') {
         await navigator.clipboard.writeText(response.value)
         setMode('search')
         setInputValue('')
         setSearchResults([])
-      } else if (response.status === 'error') {
+      } else {
         console.error('Failed to copy password:', response.message)
         if (response.message.includes('locked')) {
           setModeToLogin()
@@ -124,7 +169,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const setModeToLogin = async () => {
     try {
       const authResult = await invoke('get_vault_auth_method')
-      const auth = JSON.parse(authResult as string)
+      const auth = AuthMethodResponseSchema.parse(JSON.parse(authResult as string))
       setMode(
         auth.auth_method === 'biometric-keychain'
           ? 'biometric-login'
@@ -182,7 +227,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
 
       const command = isEditing ? 'update_entry' : 'add_entry'
       const result = await invoke(command, payload)
-      const response = JSON.parse(result as string)
+      const response = ResponseSchema.parse(JSON.parse(result as string))
 
       if (response.status === 'success') {
         setFormData({ title: '', username: '', password: '', url: '' })
@@ -233,7 +278,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const handleDeleteEntry = async (entryId: string) => {
     try {
       const result = await invoke('delete_entry', { entryId })
-      const response = JSON.parse(result as string)
+      const response = ResponseSchema.parse(JSON.parse(result as string))
 
       if (response.status === 'success') {
         setMode('search')
@@ -249,7 +294,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const handleEdit = async (entryId: string) => {
     try {
       const result = await invoke('get_full_entry', { entryId })
-      const entry = JSON.parse(result as string)
+      const entry = EntrySchema.parse(JSON.parse(result as string))
 
       setFormData({
         title: entry.title,

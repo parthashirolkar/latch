@@ -1,5 +1,11 @@
 import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { z } from 'zod'
+
+const ResponseSchema = z.object({
+  status: z.string(),
+  message: z.string().optional()
+})
 
 interface UnlockVaultProps {
   onSuccess: () => void
@@ -22,7 +28,7 @@ function UnlockVault({ onSuccess }: UnlockVaultProps) {
     setLoading(true)
     try {
       const result = await invoke('unlock_vault', { password })
-      const response = JSON.parse(result as string)
+      const response = ResponseSchema.parse(JSON.parse(result as string))
 
       if (response.status === 'success') {
         onSuccess()

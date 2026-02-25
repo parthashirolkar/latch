@@ -62,13 +62,16 @@ export default function StrengthMeter({ password, showEntropy = false }: Strengt
     score: number
     entropy: number
   }>({ score: 0, entropy: 0 })
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (!password) {
+    if (!password || password === 'Generating...') {
       setAnalysis({ score: 0, entropy: 0 })
+      setIsLoading(false)
       return
     }
 
+    setIsLoading(true)
     const analyzePassword = async () => {
       try {
         const result = await invoke('analyze_password_strength', { password })
@@ -79,49 +82,38 @@ export default function StrengthMeter({ password, showEntropy = false }: Strengt
         })
       } catch (error) {
         console.error('Error analyzing password:', error)
+        setAnalysis({ score: 0, entropy: 0 })
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    const timer = setTimeout(analyzePassword, 150)
+    const timer = setTimeout(analyzePassword, 300)
     return () => clearTimeout(timer)
   }, [password])
 
-  if (!password) {
+  if (!password || password === 'Generating...') {
     return null
   }
 
   const strengthInfo = getStrengthInfo(analysis.score)
   const Icon = strengthInfo.icon
-  const percentage = ((analysis.score + 1) / 5) * 100
 
   return (
-    <div className="strength-meter">
-      <div className="strength-header">
-        <div className="strength-info">
-          <Icon size={14} style={{ color: strengthInfo.color }} />
-          <span className="strength-label" style={{ color: strengthInfo.color }}>
-            {strengthInfo.label}
+    <div className="strength-meter" style={{ opacity: isLoading ? 0.6 : 1, transition: 'opacity 0.15s ease' }}>
+      <div className="strength-meter-info">
+        <Icon size={14} style={{ color: strengthInfo.color }} />
+        <span className="strength-meter-label" style={{ color: strengthInfo.color }}>
+          {strengthInfo.label}
+        </span>
+        {showEntropy && !isNaN(analysis.entropy) && (
+          <span className="strength-meter-entropy">
+            {Math.round(analysis.entropy)}-bit
           </span>
-          {showEntropy && (
-            <span className="strength-entropy">
-              {Math.round(analysis.entropy)}-bit
-            </span>
-          )}
-        </div>
+        )}
       </div>
-      <div className="strength-bar-container">
-        <div
-          className="strength-bar"
-          style={{
-            width: `${percentage}%`,
-            background: `linear-gradient(90deg, 
-              #ff4d4d 0%, 
-              #ffa500 25%, 
-              #ffcc00 50%, 
-              #90ee90 75%, 
-              ${strengthInfo.color} 100%)`
-          }}
-        />
+      <div className="strength-meter-bar">
+        <div className={`strength-meter-fill ${strengthInfo.level}`} />
       </div>
     </div>
   )

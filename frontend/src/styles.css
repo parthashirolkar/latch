@@ -1273,6 +1273,7 @@ body {
   font-family: var(--font-mono);
   font-size: var(--font-xs);
   color: var(--text-tertiary);
+  margin-left: 8px;
 }
 
 /* Vault Health Styles */
