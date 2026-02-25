@@ -14,6 +14,15 @@ use tauri::{Manager, State};
 use tauri_plugin_global_shortcut::ShortcutState;
 use vault::Vault;
 
+#[allow(dead_code)]
+const KDF_PASSWORD_PBKDF2: &str = "password-pbkdf2";
+#[allow(dead_code)]
+const KDF_OAUTH_ARGON2ID: &str = "oauth-argon2id";
+#[allow(dead_code)]
+const KDF_OAUTH_PBKDF2: &str = "oauth-pbkdf2";
+#[allow(dead_code)]
+const KDF_BIOMETRIC_KEYCHAIN: &str = "biometric-keychain";
+
 struct VaultState(Mutex<Vault>);
 
 fn setup_system_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -285,7 +294,7 @@ async fn init_vault_with_key(
     key.copy_from_slice(&key_bytes);
 
     let vault = &mut state.0.lock().unwrap();
-    vault.init_with_key(&key, &kdf)?;
+    vault.init_with_key(&key, &kdf, "")?;
 
     Ok(json!({"status": "success"}).to_string())
 }
@@ -314,23 +323,8 @@ async fn init_vault(password: String, state: State<'_, VaultState>) -> Result<St
     let key = password::derive_key_from_password(&password, &salt);
     let salt_hex = hex::encode(salt);
 
-    let vault_path = {
-        let vault = &mut state.0.lock().unwrap();
-        vault.init_with_key(&key, "password-pbkdf2")?;
-        vault.vault_path.clone()
-    };
-
-    let content =
-        fs::read_to_string(&vault_path).map_err(|e| format!("Failed to read vault: {}", e))?;
-    let mut vault_data: serde_json::Value =
-        serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
-
-    vault_data["salt"] = serde_json::json!(salt_hex);
-
-    let json_vault = serde_json::to_string_pretty(&vault_data)
-        .map_err(|e| format!("Failed to serialize vault: {}", e))?;
-
-    fs::write(&vault_path, json_vault).map_err(|e| format!("Failed to write vault: {}", e))?;
+    let vault = &mut state.0.lock().unwrap();
+    vault.init_with_key(&key, KDF_PASSWORD_PBKDF2, &salt_hex)?;
 
     Ok(json!({"status": "success"}).to_string())
 }
@@ -340,31 +334,28 @@ async fn unlock_vault(password: String, state: State<'_, VaultState>) -> Result<
     let vault = &mut state.0.lock().unwrap();
 
     let content = fs::read_to_string(&vault.vault_path)
-        .map_err(|e| format!("Failed to read vault: {}", e))?;
+        .map_err(|e| format!("Failed to unlock vault: {}", e))?;
     let vault_data: serde_json::Value =
-        serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
+        serde_json::from_str(&content).map_err(|e| format!("Failed to unlock vault: {}", e))?;
 
     let kdf = vault_data
         .get("kdf")
         .and_then(|v| v.as_str())
-        .ok_or("Invalid vault: missing kdf")?;
+        .ok_or("Failed to unlock vault".to_string())?;
 
-    if kdf != "password-pbkdf2" {
-        return Err(format!(
-            "Vault was created with {}. Please use the appropriate authentication method.",
-            kdf
-        ));
+    if kdf != KDF_PASSWORD_PBKDF2 {
+        return Err("Failed to unlock vault".to_string());
     }
 
     let salt_hex = vault_data
         .get("salt")
         .and_then(|v| v.as_str())
-        .ok_or("Invalid vault: missing salt")?;
+        .ok_or("Failed to unlock vault".to_string())?;
 
-    let salt_bytes = hex::decode(salt_hex).map_err(|e| format!("Invalid salt encoding: {}", e))?;
+    let salt_bytes = hex::decode(salt_hex).map_err(|e| format!("Failed to unlock vault: {}", e))?;
 
     if salt_bytes.len() != 32 {
-        return Err("Invalid salt length".to_string());
+        return Err("Failed to unlock vault".to_string());
     }
     let mut salt = [0u8; 32];
     salt.copy_from_slice(&salt_bytes);
@@ -428,7 +419,7 @@ async fn migrate_to_oauth(
 
     let new_vault_data = serde_json::json!({
         "version": vault_data["version"],
-        "kdf": "oauth-argon2id",
+        "kdf": KDF_OAUTH_ARGON2ID,
         "salt": user_id,
         "data": new_encrypted_data
     });
@@ -492,7 +483,7 @@ async fn reencrypt_vault_to_oauth(
     let key = oauth::derive_key_from_oauth(&user_id)?;
 
     let vault = &mut state.0.lock().unwrap();
-    vault.reencrypt_vault(&key, "oauth-argon2id", &user_id)?;
+    vault.reencrypt_vault(&key, KDF_OAUTH_ARGON2ID, &user_id)?;
 
     Ok(json!({"status": "success"}).to_string())
 }

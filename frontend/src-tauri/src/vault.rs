@@ -390,7 +390,7 @@ impl Vault {
         Ok(vault.kdf.clone())
     }
 
-    pub fn init_with_key(&mut self, key: &[u8; 32], kdf: &str) -> Result<(), String> {
+    pub fn init_with_key(&mut self, key: &[u8; 32], kdf: &str, salt: &str) -> Result<(), String> {
         if self.vault_exists() {
             return Err("Vault already exists".to_string());
         }
@@ -406,7 +406,7 @@ impl Vault {
         let vault = EncryptedVault {
             version: "2".to_string(),
             kdf: kdf.to_string(),
-            salt: String::new(),
+            salt: salt.to_string(),
             data: encrypted_data,
         };
 
@@ -414,7 +414,7 @@ impl Vault {
             .map_err(|e| format!("Failed to serialize vault: {}", e))?;
 
         let tmp_path = self.vault_path.with_extension("enc.tmp");
-        fs::write(&tmp_path, &json_vault).map_err(|e| format!("Failed to write vault: {}", e))?;
+        fs::write(&tmp_path, json_vault).map_err(|e| format!("Failed to write vault: {}", e))?;
         fs::rename(&tmp_path, &self.vault_path)
             .map_err(|e| format!("Failed to rename vault: {}", e))?;
 
@@ -512,7 +512,7 @@ mod tests {
         assert!(!vault.vault_exists());
 
         let key = [0u8; 32];
-        vault.init_with_key(&key, "biometric-keychain").unwrap();
+        vault.init_with_key(&key, "biometric-keychain", "").unwrap();
 
         assert!(vault.vault_exists());
         assert_eq!(vault.get_auth_method().unwrap(), "biometric-keychain");
@@ -523,7 +523,7 @@ mod tests {
     fn test_unlock_with_key_biometric_kdf() {
         let (mut vault, _temp) = create_test_vault();
         let key = [1u8; 32];
-        vault.init_with_key(&key, "biometric-keychain").unwrap();
+        vault.init_with_key(&key, "biometric-keychain", "").unwrap();
         vault.lock_vault();
 
         assert!(!vault.is_unlocked());
@@ -537,7 +537,9 @@ mod tests {
         let key1 = [1u8; 32];
         let key2 = [2u8; 32];
 
-        vault.init_with_key(&key1, "biometric-keychain").unwrap();
+        vault
+            .init_with_key(&key1, "biometric-keychain", "")
+            .unwrap();
         vault
             .add_entry(Entry {
                 id: "test-id".to_string(),
@@ -564,7 +566,7 @@ mod tests {
         let (mut vault, _temp) = create_test_vault();
         let key = [3u8; 32];
 
-        vault.init_with_key(&key, "biometric-keychain").unwrap();
+        vault.init_with_key(&key, "biometric-keychain", "").unwrap();
         assert!(vault.vault_exists());
         assert!(!vault.vault_path.with_extension("enc.tmp").exists());
     }

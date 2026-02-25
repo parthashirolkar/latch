@@ -29,10 +29,6 @@ fn get_app_secret() -> String {
 pub fn derive_key_from_oauth(user_id: &str) -> Result<[u8; 32], String> {
     let app_secret = get_app_secret();
 
-    if app_secret.len() < 16 {
-        return Err("App secret too short - must be at least 16 bytes".to_string());
-    }
-
     // Use Argon2id to derive a 32-byte key
     // Parameters: memory_cost=32768, time_cost=2, parallelism=2
     let params =
