@@ -9,12 +9,21 @@ pub struct GoogleIdToken {
 }
 
 fn get_app_secret() -> String {
-    env::var("LATCH_OAUTH_SECRET")
+    let secret = env::var("LATCH_OAUTH_SECRET")
         .map_err(|_| {
             "LATCH_OAUTH_SECRET environment variable not set. Please set it for production use."
                 .to_string()
         })
-        .unwrap()
+        .unwrap();
+
+    if secret.len() < 32 {
+        panic!(
+            "LATCH_OAUTH_SECRET must be at least 32 bytes for security. Current length: {}",
+            secret.len()
+        );
+    }
+
+    secret
 }
 
 pub fn derive_key_from_oauth(user_id: &str) -> Result<[u8; 32], String> {

@@ -1,10 +1,12 @@
 mod oauth;
+mod password;
 mod password_generator;
 mod vault;
 mod vault_health;
 
 use oauth::get_user_id_from_token;
 use serde_json::json;
+use std::fs;
 use std::sync::Mutex;
 use tauri::menu::{MenuBuilder, MenuItem};
 use tauri::tray::TrayIconBuilder;
@@ -112,11 +114,14 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             init_vault_oauth,
             init_vault_with_key,
+            init_vault,
             unlock_vault_oauth,
             unlock_vault_with_key,
+            unlock_vault,
             get_vault_auth_method,
             reencrypt_vault,
             reencrypt_vault_to_oauth,
+            migrate_to_oauth,
             vault_status,
             lock_vault,
             search_entries,
@@ -299,6 +304,146 @@ async fn unlock_vault_with_key(
 
     let vault = &mut state.0.lock().unwrap();
     vault.unlock_with_key(&key)?;
+
+    Ok(json!({"status": "success"}).to_string())
+}
+
+#[tauri::command]
+async fn init_vault(password: String, state: State<'_, VaultState>) -> Result<String, String> {
+    let salt = password::generate_salt();
+    let key = password::derive_key_from_password(&password, &salt);
+    let salt_hex = hex::encode(salt);
+
+    let vault_path = {
+        let vault = &mut state.0.lock().unwrap();
+        vault.init_with_key(&key, "password-pbkdf2")?;
+        vault.vault_path.clone()
+    };
+
+    let content =
+        fs::read_to_string(&vault_path).map_err(|e| format!("Failed to read vault: {}", e))?;
+    let mut vault_data: serde_json::Value =
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
+
+    vault_data["salt"] = serde_json::json!(salt_hex);
+
+    let json_vault = serde_json::to_string_pretty(&vault_data)
+        .map_err(|e| format!("Failed to serialize vault: {}", e))?;
+
+    fs::write(&vault_path, json_vault).map_err(|e| format!("Failed to write vault: {}", e))?;
+
+    Ok(json!({"status": "success"}).to_string())
+}
+
+#[tauri::command]
+async fn unlock_vault(password: String, state: State<'_, VaultState>) -> Result<String, String> {
+    let vault = &mut state.0.lock().unwrap();
+
+    let content = fs::read_to_string(&vault.vault_path)
+        .map_err(|e| format!("Failed to read vault: {}", e))?;
+    let vault_data: serde_json::Value =
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
+
+    let kdf = vault_data
+        .get("kdf")
+        .and_then(|v| v.as_str())
+        .ok_or("Invalid vault: missing kdf")?;
+
+    if kdf != "password-pbkdf2" {
+        return Err(format!(
+            "Vault was created with {}. Please use the appropriate authentication method.",
+            kdf
+        ));
+    }
+
+    let salt_hex = vault_data
+        .get("salt")
+        .and_then(|v| v.as_str())
+        .ok_or("Invalid vault: missing salt")?;
+
+    let salt_bytes = hex::decode(salt_hex).map_err(|e| format!("Invalid salt encoding: {}", e))?;
+
+    if salt_bytes.len() != 32 {
+        return Err("Invalid salt length".to_string());
+    }
+    let mut salt = [0u8; 32];
+    salt.copy_from_slice(&salt_bytes);
+
+    let key = password::derive_key_from_password(&password, &salt);
+
+    vault.unlock_with_key(&key)?;
+
+    Ok(json!({"status": "success"}).to_string())
+}
+
+#[tauri::command]
+async fn migrate_to_oauth(
+    password: String,
+    id_token: String,
+    state: State<'_, VaultState>,
+) -> Result<String, String> {
+    let user_id =
+        get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
+
+    let vault = &mut state.0.lock().unwrap();
+
+    let content = fs::read_to_string(&vault.vault_path)
+        .map_err(|e| format!("Failed to read vault: {}", e))?;
+    let vault_data: serde_json::Value =
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse vault: {}", e))?;
+
+    let kdf = vault_data
+        .get("kdf")
+        .and_then(|v| v.as_str())
+        .ok_or("Invalid vault: missing kdf")?;
+
+    if kdf != "password-pbkdf2" {
+        return Err("Migration is only supported from password-based vaults".to_string());
+    }
+
+    let salt_hex = vault_data
+        .get("salt")
+        .and_then(|v| v.as_str())
+        .ok_or("Invalid vault: missing salt")?;
+
+    let salt_bytes = hex::decode(salt_hex).map_err(|e| format!("Invalid salt encoding: {}", e))?;
+
+    if salt_bytes.len() != 32 {
+        return Err("Invalid salt length".to_string());
+    }
+    let mut salt = [0u8; 32];
+    salt.copy_from_slice(&salt_bytes);
+
+    let password_key = password::derive_key_from_password(&password, &salt);
+
+    let encrypted_data: vault::EncryptedData =
+        serde_json::from_str(&vault_data["data"].to_string())
+            .map_err(|e| format!("Failed to parse encrypted data: {}", e))?;
+
+    let decrypted = vault::Vault::decrypt_data(&password_key, &encrypted_data)?;
+
+    let oauth_key = oauth::derive_key_from_oauth(&user_id)?;
+
+    let new_encrypted_data = vault::Vault::encrypt_data(&oauth_key, &decrypted)?;
+
+    let new_vault_data = serde_json::json!({
+        "version": vault_data["version"],
+        "kdf": "oauth-argon2id",
+        "salt": user_id,
+        "data": new_encrypted_data
+    });
+
+    let json_vault = serde_json::to_string_pretty(&new_vault_data)
+        .map_err(|e| format!("Failed to serialize vault: {}", e))?;
+
+    let vault_path = vault.vault_path.clone();
+
+    let tmp_path = vault_path.with_extension("enc.tmp");
+    fs::write(&tmp_path, json_vault).map_err(|e| format!("Failed to write vault: {}", e))?;
+    fs::rename(&tmp_path, &vault_path).map_err(|e| format!("Failed to rename vault: {}", e))?;
+
+    let vault = &mut state.0.lock().unwrap();
+    vault.unlock_with_key(&oauth_key)?;
 
     Ok(json!({"status": "success"}).to_string())
 }
