@@ -49,12 +49,14 @@ export default function PasswordGenerator({
   const generatePassword = async () => {
     try {
       const result = await invoke('generate_password', {
-        length: options.length,
-        uppercase: options.uppercase,
-        lowercase: options.lowercase,
-        numbers: options.numbers,
-        symbols: options.symbols,
-        excludeAmbiguous: options.excludeAmbiguous
+        options: {
+          length: options.length,
+          uppercase: options.uppercase,
+          lowercase: options.lowercase,
+          numbers: options.numbers,
+          symbols: options.symbols,
+          exclude_ambiguous: options.excludeAmbiguous
+        }
       })
       const response = JSON.parse(result as string)
       if (response.status === 'success' && response.password) {
@@ -86,6 +88,13 @@ export default function PasswordGenerator({
 
   const handleKeyDown = (e: Event) => {
     const keyboardEvent = e as KeyboardEvent
+    const target = keyboardEvent.target as HTMLElement
+
+    // Don't handle keyboard events if focus is on the range slider
+    if (target.tagName === 'INPUT' && target.getAttribute('type') === 'range') {
+      return
+    }
+
     switch (keyboardEvent.key) {
       case 'Enter':
         handleUsePassword()
@@ -118,35 +127,27 @@ export default function PasswordGenerator({
 
   return (
     <div ref={containerRef} className="password-generator">
-      <div className="password-display">
-        <div className="password-text">{generatedPassword || 'Generating...'}</div>
+      <div className="password-generator-display">
+        <div className="password-generator-value">{generatedPassword || 'Generating...'}</div>
       </div>
 
       <StrengthMeter password={generatedPassword} showEntropy />
 
-      <div className="password-options">
-        <div className="option-slider">
-          <span className="option-label">Length</span>
-          <div className="slider-controls">
-            <button
-              className="slider-button"
-              onClick={() => handleLengthChange(-4)}
-              disabled={options.length <= 8}
-            >
-              −
-            </button>
-            <span className="length-value">{options.length}</span>
-            <button
-              className="slider-button"
-              onClick={() => handleLengthChange(4)}
-              disabled={options.length >= 128}
-            >
-              +
-            </button>
-          </div>
+      <div className="password-generator-options">
+        <div className="password-generator-slider">
+          <label>Length</label>
+          <input
+            type="range"
+            min="8"
+            max="128"
+            step="4"
+            value={options.length}
+            onChange={(e) => setOptions(prev => ({ ...prev, length: parseInt(e.target.value) }))}
+          />
+          <span className="password-generator-slider-value">{options.length}</span>
         </div>
 
-        <label className="option-checkbox">
+        <label className="password-generator-option">
           <input
             type="checkbox"
             checked={options.uppercase}
@@ -155,7 +156,7 @@ export default function PasswordGenerator({
           <span>Uppercase (A-Z)</span>
         </label>
 
-        <label className="option-checkbox">
+        <label className="password-generator-option">
           <input
             type="checkbox"
             checked={options.lowercase}
@@ -164,7 +165,7 @@ export default function PasswordGenerator({
           <span>Lowercase (a-z)</span>
         </label>
 
-        <label className="option-checkbox">
+        <label className="password-generator-option">
           <input
             type="checkbox"
             checked={options.numbers}
@@ -173,7 +174,7 @@ export default function PasswordGenerator({
           <span>Numbers (0-9)</span>
         </label>
 
-        <label className="option-checkbox">
+        <label className="password-generator-option">
           <input
             type="checkbox"
             checked={options.symbols}
@@ -182,7 +183,7 @@ export default function PasswordGenerator({
           <span>Symbols (!@#$%^&*)</span>
         </label>
 
-        <label className="option-checkbox">
+        <label className="password-generator-option">
           <input
             type="checkbox"
             checked={options.excludeAmbiguous}
@@ -192,22 +193,22 @@ export default function PasswordGenerator({
         </label>
       </div>
 
-      <div className="generator-actions">
-        <button className="action-button" onClick={generatePassword}>
+      <div className="password-generator-actions">
+        <button className="password-generator-button password-generator-button-secondary" onClick={generatePassword}>
           <Shuffle size={16} />
           Regenerate
         </button>
-        <button className="action-button" onClick={handleCopy}>
+        <button className="password-generator-button password-generator-button-secondary" onClick={handleCopy}>
           <Copy size={16} />
           {copied ? 'Copied!' : 'Copy'}
         </button>
-        <button className="action-button primary" onClick={handleUsePassword}>
+        <button className="password-generator-button password-generator-button-primary" onClick={handleUsePassword}>
           <Check size={16} />
           Use Password
         </button>
       </div>
 
-      <div className="generator-footer">
+      <div style={{ textAlign: 'center', fontSize: 'var(--font-sm)', color: 'var(--text-secondary)', marginTop: '8px' }}>
         <kbd>Space</kbd> Regenerate <kbd>↑/↓</kbd> Adjust length <kbd>Enter</kbd> Confirm <kbd>Esc</kbd> Cancel
       </div>
     </div>

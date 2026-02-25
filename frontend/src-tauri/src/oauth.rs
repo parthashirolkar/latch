@@ -9,18 +9,15 @@ pub struct GoogleIdToken {
 }
 
 fn get_app_secret() -> String {
-    let secret = env::var("LATCH_OAUTH_SECRET")
-        .map_err(|_| {
-            "LATCH_OAUTH_SECRET environment variable not set. Please set it for production use."
-                .to_string()
-        })
-        .unwrap();
+    let secret = env::var("LATCH_OAUTH_SECRET").unwrap_or_else(|_| {
+        panic!("LATCH_OAUTH_SECRET environment variable not set. Please set it for production use.")
+    });
 
     if secret.len() < 32 {
         panic!(
             "LATCH_OAUTH_SECRET must be at least 32 bytes for security. Current length: {}",
             secret.len()
-        );
+        )
     }
 
     secret
@@ -30,9 +27,9 @@ pub fn derive_key_from_oauth(user_id: &str) -> Result<[u8; 32], String> {
     let app_secret = get_app_secret();
 
     // Use Argon2id to derive a 32-byte key
-    // Parameters: memory_cost=32768, time_cost=2, parallelism=2
+    // Parameters: memory_cost=65536 (64MB), time_cost=3, parallelism=4
     let params =
-        Params::new(32768, 2, 2, Some(32)).map_err(|e| format!("Invalid Argon2 params: {}", e))?;
+        Params::new(65536, 3, 4, Some(32)).map_err(|e| format!("Invalid Argon2 params: {}", e))?;
 
     let argon2 = Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
 
@@ -50,15 +47,21 @@ pub fn derive_key_from_oauth(user_id: &str) -> Result<[u8; 32], String> {
 }
 
 pub fn decode_id_token(id_token: &str) -> Result<GoogleIdToken, String> {
-    // For ID tokens, we decode without verifying signature or any claims
-    // The signature was already verified by the Google OAuth plugin
-    // We just need to extract the 'sub' claim (user ID)
+    // Validate critical claims for security
+    // Note: Signature validation requires fetching Google's public keys (JWKs)
+    // which should be implemented for production. For now, we validate claims.
+    let client_id = env::var("LATCH_OAUTH_CLIENT_ID").unwrap_or_else(|_| String::new());
+
     let mut validation = Validation::new(Algorithm::RS256);
     validation.insecure_disable_signature_validation();
-    validation.validate_aud = false;
-    validation.validate_exp = false;
-    validation.validate_nbf = false;
-    validation.required_spec_claims.clear();
+    validation.validate_aud = true;
+    validation.validate_exp = true;
+    validation.validate_nbf = true;
+    validation.set_issuer(&["https://accounts.google.com", "accounts.google.com"]);
+
+    if !client_id.is_empty() {
+        validation.set_audience(&[&client_id]);
+    }
 
     let token_data = decode::<GoogleIdToken>(
         id_token,

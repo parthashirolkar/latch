@@ -70,7 +70,11 @@ pub fn check_weak_passwords(entries: &[Entry]) -> Vec<WeakPassword> {
         }
     }
 
-    weak_passwords.sort_by(|a, b| a.entropy.partial_cmp(&b.entropy).unwrap());
+    weak_passwords.sort_by(|a, b| {
+        a.entropy
+            .partial_cmp(&b.entropy)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     weak_passwords
 }
 

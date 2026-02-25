@@ -1,17 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { z } from 'zod'
 import CommandPalette from './components/CommandPalette'
 import { useWindowAutoResize } from './hooks/useWindowAutoResize'
 
-interface VaultStatus {
-  has_vault: boolean
-  is_unlocked: boolean
-}
+const VaultStatusSchema = z.object({
+  has_vault: z.boolean(),
+  is_unlocked: z.boolean()
+})
 
-interface AuthMethodResponse {
-  status: string
-  auth_method: string
-}
+const AuthMethodResponseSchema = z.object({
+  status: z.string(),
+  auth_method: z.string()
+})
 
 type InitialMode =
   | 'auth-selector'
@@ -37,14 +38,14 @@ function App() {
     setLoading(true)
     try {
       const result = await invoke('vault_status')
-      const status = JSON.parse(result as string) as VaultStatus
+      const status = VaultStatusSchema.parse(JSON.parse(result as string))
       setHasVault(status.has_vault)
       setIsUnlocked(status.is_unlocked)
 
       if (status.has_vault && !status.is_unlocked) {
         const authResult = await invoke('get_vault_auth_method')
-        const auth = JSON.parse(authResult as string) as AuthMethodResponse
-        setAuthMethod(auth.auth_method ?? 'none')
+        const auth = AuthMethodResponseSchema.parse(JSON.parse(authResult as string))
+        setAuthMethod(auth.auth_method)
       }
     } catch (error) {
       console.error('Failed to check vault status:', error)

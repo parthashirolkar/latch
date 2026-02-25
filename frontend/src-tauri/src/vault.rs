@@ -6,6 +6,7 @@ use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf, time::SystemTime};
+use zeroize::Zeroize;
 
 use crate::oauth::derive_key_from_oauth;
 
@@ -61,7 +62,7 @@ pub struct VaultData {
 
 pub struct Vault {
     entries: Vec<Entry>,
-    pub(crate) session_key: Option<[u8; 32]>,
+    pub(crate) session_key: Option<zeroize::Zeroizing<[u8; 32]>>,
     pub(crate) session_start: Option<SystemTime>,
     pub(crate) vault_path: PathBuf,
 }
@@ -116,7 +117,7 @@ impl Vault {
         String::from_utf8(plaintext).map_err(|e| format!("Invalid UTF-8 in decrypted data: {}", e))
     }
 
-    fn check_session(&self) -> Result<(), String> {
+    fn check_session(&mut self) -> Result<(), String> {
         if self.session_key.is_none() {
             return Err("Vault is locked".to_string());
         }
@@ -128,6 +129,7 @@ impl Vault {
                 .as_secs();
 
             if elapsed > SESSION_TIMEOUT_SECS {
+                self.lock_vault();
                 return Err("Session expired".to_string());
             }
         } else {
@@ -141,13 +143,16 @@ impl Vault {
         self.session_start = Some(SystemTime::now());
     }
     pub fn lock_vault(&mut self) {
+        if let Some(ref mut key) = self.session_key {
+            key.zeroize();
+        }
         self.session_key = None;
         self.session_start = None;
         self.entries.clear();
     }
 
     pub fn is_unlocked(&self) -> bool {
-        self.session_key.is_some()
+        self.session_key.as_ref().is_some()
     }
 
     pub fn get_entries(&self) -> Vec<Entry> {
@@ -250,14 +255,17 @@ impl Vault {
     }
 
     fn save_vault(&self) -> Result<(), String> {
-        let key = self.session_key.ok_or("Vault is locked".to_string())?;
+        let key = self
+            .session_key
+            .as_ref()
+            .ok_or("Vault is locked".to_string())?;
 
         let json_data = serde_json::to_string(&VaultData {
             entries: self.entries.clone(),
         })
         .map_err(|e| format!("Failed to serialize vault data: {}", e))?;
 
-        let encrypted_data = Self::encrypt_data(&key, &json_data)?;
+        let encrypted_data = Self::encrypt_data(key, &json_data)?;
 
         let content = fs::read_to_string(&self.vault_path)
             .map_err(|e| format!("Failed to read vault: {}", e))?;
@@ -308,7 +316,7 @@ impl Vault {
         fs::rename(&tmp_path, &self.vault_path)
             .map_err(|e| format!("Failed to rename vault: {}", e))?;
 
-        self.session_key = Some(key);
+        self.session_key = Some(zeroize::Zeroizing::new(key));
         self.session_start = Some(SystemTime::now());
         self.entries = Vec::new();
 
@@ -339,7 +347,7 @@ impl Vault {
         let vault_data: VaultData = serde_json::from_str(&decrypted)
             .map_err(|e| format!("Failed to parse vault data: {}", e))?;
 
-        self.session_key = Some(key);
+        self.session_key = Some(zeroize::Zeroizing::new(key));
         self.session_start = Some(SystemTime::now());
         self.entries = vault_data.entries;
 
@@ -369,7 +377,7 @@ impl Vault {
         let vault_data: VaultData = serde_json::from_str(&decrypted)
             .map_err(|e| format!("Failed to parse vault data: {}", e))?;
 
-        self.session_key = Some(*key);
+        self.session_key = Some(zeroize::Zeroizing::new(*key));
         self.session_start = Some(SystemTime::now());
         self.entries = vault_data.entries;
 
@@ -418,7 +426,7 @@ impl Vault {
         fs::rename(&tmp_path, &self.vault_path)
             .map_err(|e| format!("Failed to rename vault: {}", e))?;
 
-        self.session_key = Some(*key);
+        self.session_key = Some(zeroize::Zeroizing::new(*key));
         self.session_start = Some(SystemTime::now());
         self.entries = Vec::new();
 
@@ -456,7 +464,7 @@ impl Vault {
         fs::rename(&tmp_path, &self.vault_path)
             .map_err(|e| format!("Failed to rename vault: {}", e))?;
 
-        self.session_key = Some(*new_key);
+        self.session_key = Some(zeroize::Zeroizing::new(*new_key));
         self.refresh_session();
 
         Ok(())

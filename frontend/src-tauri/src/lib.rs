@@ -37,10 +37,15 @@ fn setup_system_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>>
 
     // Load password.ico for system tray icon using the default window icon
     // The password.ico will be used because it's specified in tauri.conf.json
+    let tray_icon = app
+        .default_window_icon()
+        .ok_or("Failed to get window icon")?
+        .clone();
+
     let _tray = TrayIconBuilder::with_id("main-tray")
         .menu(&menu)
         .tooltip("Latch Password Manager")
-        .icon(app.default_window_icon().unwrap().clone())
+        .icon(tray_icon)
         .on_menu_event(move |app, event| match event.id.0.as_str() {
             "show" => {
                 if let Some(window) = app.get_webview_window("main") {
@@ -91,7 +96,8 @@ pub fn run() {
                     .with_handler(move |_app, _shortcut, event| {
                         if event.state == ShortcutState::Pressed {
                             if let Some(window) = handle.get_webview_window("main") {
-                                if window.is_visible().unwrap_or(false) {
+                                let is_visible = window.is_visible().unwrap_or(false);
+                                if is_visible {
                                     let _ = window.hide();
                                 } else {
                                     let _ = window.show();
@@ -109,11 +115,13 @@ pub fn run() {
             }
 
             // Intercept window close event to hide instead
-            let window = app.get_webview_window("main").unwrap();
+            let window = app
+                .get_webview_window("main")
+                .ok_or("Failed to get main window")?;
             let window_clone = window.clone();
             window.on_window_event(move |event| {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    window_clone.hide().unwrap();
+                    let _ = window_clone.hide();
                     api.prevent_close();
                 }
             });
@@ -150,7 +158,10 @@ pub fn run() {
 
 #[tauri::command]
 async fn search_entries(query: String, state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     let results = vault.search_entries(&query)?;
 
     serde_json::to_string(&results).map_err(|e| format!("Failed to serialize results: {}", e))
@@ -162,7 +173,10 @@ async fn request_secret(
     field: String,
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     let secret = vault.get_entry(&entry_id, &field)?;
 
     Ok(json!({"status": "success", "value": secret}).to_string())
@@ -170,7 +184,10 @@ async fn request_secret(
 
 #[tauri::command]
 async fn lock_vault(state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     vault.lock_vault();
 
     Ok(json!({"status": "success"}).to_string())
@@ -178,7 +195,10 @@ async fn lock_vault(state: State<'_, VaultState>) -> Result<String, String> {
 
 #[tauri::command]
 async fn vault_status(state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = state.0.lock().unwrap();
+    let vault = state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     let unlocked = vault.is_unlocked();
     let has_vault = vault.vault_exists();
 
@@ -194,7 +214,10 @@ async fn add_entry(
     icon_url: Option<String>,
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     let id = uuid::Uuid::new_v4().to_string();
 
     let entry = vault::Entry {
@@ -212,7 +235,10 @@ async fn add_entry(
 
 #[tauri::command]
 async fn delete_entry(entry_id: String, state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     vault.delete_entry(&entry_id)?;
 
     Ok(json!({"status": "success"}).to_string())
@@ -220,7 +246,10 @@ async fn delete_entry(entry_id: String, state: State<'_, VaultState>) -> Result<
 
 #[tauri::command]
 async fn get_full_entry(entry_id: String, state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = state.0.lock().unwrap();
+    let vault = state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     let entry = vault.get_full_entry(&entry_id)?;
 
     serde_json::to_string(&entry).map_err(|e| format!("Failed to serialize entry: {}", e))
@@ -236,7 +265,10 @@ async fn update_entry(
     icon_url: Option<String>,
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
 
     let entry = vault::Entry {
         id,
@@ -260,7 +292,10 @@ async fn init_vault_oauth(
     let user_id =
         get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
 
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     vault.init_with_oauth(&user_id)?;
 
     Ok(json!({"status": "success"}).to_string())
@@ -274,7 +309,10 @@ async fn unlock_vault_oauth(
     let user_id =
         get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
 
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     vault.unlock_with_oauth(&user_id)?;
 
     Ok(json!({"status": "success"}).to_string())
@@ -293,7 +331,10 @@ async fn init_vault_with_key(
     let mut key = [0u8; 32];
     key.copy_from_slice(&key_bytes);
 
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     vault.init_with_key(&key, &kdf, "")?;
 
     Ok(json!({"status": "success"}).to_string())
@@ -311,7 +352,10 @@ async fn unlock_vault_with_key(
     let mut key = [0u8; 32];
     key.copy_from_slice(&key_bytes);
 
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     vault.unlock_with_key(&key)?;
 
     Ok(json!({"status": "success"}).to_string())
@@ -323,7 +367,10 @@ async fn init_vault(password: String, state: State<'_, VaultState>) -> Result<St
     let key = password::derive_key_from_password(&password, &salt);
     let salt_hex = hex::encode(salt);
 
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     vault.init_with_key(&key, KDF_PASSWORD_PBKDF2, &salt_hex)?;
 
     Ok(json!({"status": "success"}).to_string())
@@ -331,7 +378,10 @@ async fn init_vault(password: String, state: State<'_, VaultState>) -> Result<St
 
 #[tauri::command]
 async fn unlock_vault(password: String, state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
 
     let content = fs::read_to_string(&vault.vault_path)
         .map_err(|e| format!("Failed to unlock vault: {}", e))?;
@@ -376,7 +426,10 @@ async fn migrate_to_oauth(
     let user_id =
         get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
 
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
 
     let content = fs::read_to_string(&vault.vault_path)
         .map_err(|e| format!("Failed to read vault: {}", e))?;
@@ -433,7 +486,10 @@ async fn migrate_to_oauth(
     fs::write(&tmp_path, json_vault).map_err(|e| format!("Failed to write vault: {}", e))?;
     fs::rename(&tmp_path, &vault_path).map_err(|e| format!("Failed to rename vault: {}", e))?;
 
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     vault.unlock_with_key(&oauth_key)?;
 
     Ok(json!({"status": "success"}).to_string())
@@ -441,7 +497,10 @@ async fn migrate_to_oauth(
 
 #[tauri::command]
 async fn get_vault_auth_method(state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = state.0.lock().unwrap();
+    let vault = state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     let method = vault
         .get_auth_method()
         .unwrap_or_else(|_| "none".to_string());
@@ -467,7 +526,10 @@ async fn reencrypt_vault(
     let mut key = [0u8; 32];
     key.copy_from_slice(&key_bytes);
 
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     vault.reencrypt_vault(&key, &new_kdf, &new_salt)?;
 
     Ok(json!({"status": "success"}).to_string())
@@ -482,7 +544,10 @@ async fn reencrypt_vault_to_oauth(
         get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
     let key = oauth::derive_key_from_oauth(&user_id)?;
 
-    let vault = &mut state.0.lock().unwrap();
+    let vault = &mut state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     vault.reencrypt_vault(&key, KDF_OAUTH_ARGON2ID, &user_id)?;
 
     Ok(json!({"status": "success"}).to_string())
@@ -490,7 +555,10 @@ async fn reencrypt_vault_to_oauth(
 
 #[tauri::command]
 async fn get_auth_preferences(state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = state.0.lock().unwrap();
+    let vault = state
+        .0
+        .lock()
+        .map_err(|_| "Vault is temporarily unavailable")?;
     let auth_method = vault
         .get_auth_method()
         .unwrap_or_else(|_| "none".to_string());
