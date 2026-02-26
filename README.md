@@ -93,6 +93,31 @@ latch/
 ### Important Notes
 - **No Password Recovery**: Forgotten master password = lost data
 
+## Screenshots / Demo
+
+*(Coming soon! Insert your screenshots or GIF demo here.)*
+
+## Roadmap
+
+- [ ] Browser extension integration
+- [ ] Mobile app (iOS/Android)
+- [ ] Password sharing capabilities
+
+## Troubleshooting
+
+- **Vault not opening?** Check if you've entered the correct master password.
+- **Frontend not building?** Ensure you have `bun` and the correct Node version installed.
+- **Tauri build failing?** Check missing system dependencies for Tauri (e.g. `libwebkit2gtk-4.0-dev` on Linux).
+
+## Contributing
+
+Contributions are welcome! Please check out [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to get started.
+
+## Acknowledgments
+
+- Built with [Tauri](https://tauri.app) and [React](https://reactjs.org)
+- cryptographic functions powered by `argon2` and `aes-gcm`
+
 ## License
 
-TBD
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
