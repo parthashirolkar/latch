@@ -8,11 +8,123 @@ use oauth::get_user_id_from_token;
 use serde_json::json;
 use std::fs;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tauri::menu::{MenuBuilder, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{Manager, State};
 use tauri_plugin_global_shortcut::ShortcutState;
 use vault::Vault;
+
+const MAX_FAILED_ATTEMPTS: u32 = 10;
+const BASE_LOCKOUT_DURATION: Duration = Duration::from_secs(5);
+const MAX_LOCKOUT_DURATION: Duration = Duration::from_secs(300);
+
+#[derive(Clone)]
+struct AuthAttemptState {
+    failed_attempts: u32,
+    last_failed_time: Option<Instant>,
+    lockout_until: Option<Instant>,
+}
+
+impl AuthAttemptState {
+    fn new() -> Self {
+        Self {
+            failed_attempts: 0,
+            last_failed_time: None,
+            lockout_until: None,
+        }
+    }
+
+    fn is_locked_out(&self) -> bool {
+        if let Some(lockout) = self.lockout_until {
+            Instant::now() < lockout
+        } else {
+            false
+        }
+    }
+
+    fn record_failure(&mut self) -> Result<(), String> {
+        self.failed_attempts += 1;
+        self.last_failed_time = Some(Instant::now());
+
+        if self.failed_attempts >= MAX_FAILED_ATTEMPTS {
+            self.lockout_until = Some(Instant::now() + MAX_LOCKOUT_DURATION);
+            return Err(format!(
+                "Too many failed attempts. Account locked for {} minutes.",
+                MAX_LOCKOUT_DURATION.as_secs() / 60
+            ));
+        }
+
+        let lockout_duration =
+            BASE_LOCKOUT_DURATION.saturating_mul(2_u32.pow(self.failed_attempts.saturating_sub(1)));
+        let lockout_duration = std::cmp::min(lockout_duration, MAX_LOCKOUT_DURATION);
+
+        self.lockout_until = Some(Instant::now() + lockout_duration);
+
+        Err(format!(
+            "Too many failed attempts. Please try again in {} seconds.",
+            lockout_duration.as_secs()
+        ))
+    }
+
+    fn reset(&mut self) {
+        self.failed_attempts = 0;
+        self.last_failed_time = None;
+        self.lockout_until = None;
+    }
+}
+
+struct AuthState(Mutex<AuthAttemptState>);
+
+impl AuthState {
+    fn new() -> Self {
+        Self(Mutex::new(AuthAttemptState::new()))
+    }
+}
+
+fn validate_entry_fields(
+    title: &str,
+    username: &str,
+    password: &str,
+    url: Option<&String>,
+) -> Result<(), String> {
+    if title.trim().is_empty() {
+        return Err("Title cannot be empty".to_string());
+    }
+    if title.len() > 256 {
+        return Err("Title is too long (max 256 characters)".to_string());
+    }
+
+    if username.trim().is_empty() {
+        return Err("Username cannot be empty".to_string());
+    }
+    if username.len() > 256 {
+        return Err("Username is too long (max 256 characters)".to_string());
+    }
+
+    if password.trim().is_empty() {
+        return Err("Password cannot be empty".to_string());
+    }
+    if password.len() > 1024 {
+        return Err("Password is too long (max 1024 characters)".to_string());
+    }
+
+    if let Some(url_val) = url {
+        if !url_val.trim().is_empty() {
+            match url::Url::parse(url_val) {
+                Ok(parsed) => {
+                    let scheme = parsed.scheme();
+                    if scheme != "http" && scheme != "https" {
+                        return Err("URL must use http or https scheme".to_string());
+                    }
+                }
+                Err(e) => return Err(format!("Invalid URL: {}", e)),
+            }
+        }
+    }
+
+    Ok(())
+}
 
 #[allow(dead_code)]
 const KDF_PASSWORD_PBKDF2: &str = "password-pbkdf2";
@@ -88,6 +200,7 @@ pub fn run() {
 
             let vault = Vault::new().expect("Failed to initialize vault");
             app.manage(VaultState(Mutex::new(vault)));
+            app.manage(AuthState::new());
 
             let handle = app.handle().clone();
             app.handle().plugin(
@@ -214,6 +327,8 @@ async fn add_entry(
     icon_url: Option<String>,
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
+    validate_entry_fields(&title, &username, &password, url.as_ref())?;
+
     let vault = &mut state
         .0
         .lock()
@@ -265,6 +380,8 @@ async fn update_entry(
     icon_url: Option<String>,
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
+    validate_entry_fields(&title, &username, &password, url.as_ref())?;
+
     let vault = &mut state
         .0
         .lock()
@@ -304,18 +421,43 @@ async fn init_vault_oauth(
 #[tauri::command]
 async fn unlock_vault_oauth(
     id_token: String,
-    state: State<'_, VaultState>,
+    vault_state: State<'_, VaultState>,
+    auth_state: State<'_, AuthState>,
 ) -> Result<String, String> {
-    let user_id =
-        get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
+    let mut auth = auth_state
+        .0
+        .lock()
+        .map_err(|_| "Auth state temporarily unavailable")?;
 
-    let vault = &mut state
+    if auth.is_locked_out() {
+        return Err("Too many failed attempts. Please try again later.".to_string());
+    }
+
+    let user_id = get_user_id_from_token(&id_token).map_err(|e| {
+        auth.record_failure().ok();
+        format!("Invalid ID token: {}", e)
+    })?;
+
+    let vault = &mut vault_state
         .0
         .lock()
         .map_err(|_| "Vault is temporarily unavailable")?;
-    vault.unlock_with_oauth(&user_id)?;
 
-    Ok(json!({"status": "success"}).to_string())
+    match vault.unlock_with_oauth(&user_id) {
+        Ok(_) => {
+            auth.reset();
+            Ok(json!({"status": "success"}).to_string())
+        }
+        Err(e) => {
+            let auth_error = auth.record_failure();
+            let error_msg = if let Err(msg) = auth_error {
+                format!("\n{}", msg)
+            } else {
+                String::new()
+            };
+            Err(format!("{}{}", e, error_msg))
+        }
+    }
 }
 
 #[tauri::command]
@@ -343,22 +485,49 @@ async fn init_vault_with_key(
 #[tauri::command]
 async fn unlock_vault_with_key(
     key_hex: String,
-    state: State<'_, VaultState>,
+    vault_state: State<'_, VaultState>,
+    auth_state: State<'_, AuthState>,
 ) -> Result<String, String> {
-    let key_bytes = hex::decode(&key_hex).map_err(|e| format!("Invalid key hex: {}", e))?;
+    let mut auth = auth_state
+        .0
+        .lock()
+        .map_err(|_| "Auth state temporarily unavailable")?;
+
+    if auth.is_locked_out() {
+        return Err("Too many failed attempts. Please try again later.".to_string());
+    }
+
+    let key_bytes = hex::decode(&key_hex).map_err(|e| {
+        auth.record_failure().ok();
+        format!("Invalid key hex: {}", e)
+    })?;
     if key_bytes.len() != 32 {
+        auth.record_failure().ok();
         return Err("Key must be 32 bytes".to_string());
     }
     let mut key = [0u8; 32];
     key.copy_from_slice(&key_bytes);
 
-    let vault = &mut state
+    let vault = &mut vault_state
         .0
         .lock()
         .map_err(|_| "Vault is temporarily unavailable")?;
-    vault.unlock_with_key(&key)?;
 
-    Ok(json!({"status": "success"}).to_string())
+    match vault.unlock_with_key(&key) {
+        Ok(_) => {
+            auth.reset();
+            Ok(json!({"status": "success"}).to_string())
+        }
+        Err(e) => {
+            let auth_error = auth.record_failure();
+            let error_msg = if let Err(msg) = auth_error {
+                format!("\n{}", msg)
+            } else {
+                String::new()
+            };
+            Err(format!("{}{}", e, error_msg))
+        }
+    }
 }
 
 #[tauri::command]
@@ -377,8 +546,21 @@ async fn init_vault(password: String, state: State<'_, VaultState>) -> Result<St
 }
 
 #[tauri::command]
-async fn unlock_vault(password: String, state: State<'_, VaultState>) -> Result<String, String> {
-    let vault = &mut state
+async fn unlock_vault(
+    password: String,
+    vault_state: State<'_, VaultState>,
+    auth_state: State<'_, AuthState>,
+) -> Result<String, String> {
+    let mut auth = auth_state
+        .0
+        .lock()
+        .map_err(|_| "Auth state temporarily unavailable")?;
+
+    if auth.is_locked_out() {
+        return Err("Too many failed attempts. Please try again later.".to_string());
+    }
+
+    let vault = &mut vault_state
         .0
         .lock()
         .map_err(|_| "Vault is temporarily unavailable")?;
@@ -412,9 +594,21 @@ async fn unlock_vault(password: String, state: State<'_, VaultState>) -> Result<
 
     let key = password::derive_key_from_password(&password, &salt);
 
-    vault.unlock_with_key(&key)?;
-
-    Ok(json!({"status": "success"}).to_string())
+    match vault.unlock_with_key(&key) {
+        Ok(_) => {
+            auth.reset();
+            Ok(json!({"status": "success"}).to_string())
+        }
+        Err(e) => {
+            let auth_error = auth.record_failure();
+            let error_msg = if let Err(msg) = auth_error {
+                format!("\n{}", msg)
+            } else {
+                String::new()
+            };
+            Err(format!("{}{}", e, error_msg))
+        }
+    }
 }
 
 #[tauri::command]

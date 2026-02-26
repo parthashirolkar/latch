@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { AlertTriangle, ArrowRight, RotateCw, Copy, ExternalLink } from 'lucide-react'
+import { useState } from 'react'
+import { AlertTriangle, ArrowRight, Copy, ExternalLink, Eye, EyeOff } from 'lucide-react'
+import { HealthList } from './HealthList'
 
 interface ReusedEntry {
   entry_id: string
@@ -14,151 +14,97 @@ interface ReusedPassword {
   count: number
 }
 
-interface VaultHealthResponse {
-  status: string
-  report: {
-    reused_passwords: ReusedPassword[]
-  }
-}
-
 interface ReusedPasswordsListProps {
   onSelectEntry: (entryId: string) => void
 }
 
 export default function ReusedPasswordsList({ onSelectEntry }: ReusedPasswordsListProps) {
-  const [reusedPasswords, setReusedPasswords] = useState<ReusedPassword[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set())
 
-  useEffect(() => {
-    loadReusedPasswords()
-  }, [])
-
-  const loadReusedPasswords = async () => {
-    try {
-      setIsLoading(true)
-      const result = await invoke('check_vault_health')
-      const data = JSON.parse(result as string) as VaultHealthResponse
-      setReusedPasswords(data.report?.reused_passwords || [])
-    } catch (error) {
-      console.error('Error loading reused passwords:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="settings-container">
-        <header className="settings-header">
-          <h2>Reused Passwords</h2>
-        </header>
-        <div className="settings-loading">
-          <div className="settings-loading-spinner"></div>
-          <span style={{ marginLeft: '12px' }}>Loading...</span>
-        </div>
-      </div>
-    )
+  const togglePasswordVisibility = (index: number) => {
+    setVisiblePasswords((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
   }
 
   return (
-    <div className="settings-container">
-      <header className="settings-header">
-        <h2>Reused Passwords</h2>
-        <div className="settings-header-meta">
-          <span 
-            className="settings-current-badge"
-            style={{ 
-              backgroundColor: '#ffa50020',
-              color: '#ffa500',
-              borderColor: '#ffa500'
-            }}
-          >
-            {reusedPasswords.length} set{reusedPasswords.length !== 1 ? 's' : ''}
-          </span>
-        </div>
-      </header>
-
-      <div className="settings-body">
-        <p className="settings-instruction">
-          These passwords are used on multiple accounts. Consider using unique passwords for each site.
-        </p>
-
-        {reusedPasswords.length === 0 ? (
-          <div className="settings-list-item success">
-            <div className="settings-list-item-content">
-              <span>No reused passwords found!</span>
+    <HealthList<ReusedPassword>
+      title="Reused Passwords"
+      fetchKey="reused_passwords"
+      emptyMessage="No reused passwords found!"
+      instruction="These passwords are used on multiple accounts. Consider using unique passwords for each site."
+      badgeColor="#ffa500"
+      badgeBgColor="#ffa50020"
+      renderBadge={(count) => `${count} set${count !== 1 ? 's' : ''}`}
+      renderItem={(reused, _index) => (
+        <button className="settings-list-item warning">
+          <div className="settings-list-item-content">
+            <AlertTriangle size={18} />
+            <span>Password used {reused.count} times</span>
+          </div>
+          <div className="settings-list-item-meta">
+            <span>{reused.entries.length} accounts</span>
+            <ArrowRight size={16} />
+          </div>
+        </button>
+      )}
+      renderExpandedContent={(reused, index) => (
+        <div className="settings-expandable-content">
+          <div className="settings-expandable-field">
+            <span className="settings-expandable-label">Password:</span>
+            <div className="settings-expandable-value-row">
+              <code className="settings-expandable-value">
+                {visiblePasswords.has(index) ? reused.password : '•'.repeat(Math.min(reused.password.length, 20))}
+              </code>
+              <button
+                className="settings-icon-btn"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  togglePasswordVisibility(index)
+                }}
+                title={visiblePasswords.has(index) ? 'Hide password' : 'Show password'}
+              >
+                {visiblePasswords.has(index) ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+              <button
+                className="settings-icon-btn"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigator.clipboard.writeText(reused.password)
+                }}
+                title="Copy password"
+              >
+                <Copy size={14} />
+              </button>
             </div>
           </div>
-        ) : (
-          <div className="settings-list">
-            {reusedPasswords.map((reused, index) => (
-              <div key={index} className="settings-expandable-item">
-                <button 
-                  className="settings-list-item warning"
-                  onClick={() => setExpandedId(expandedId === index ? null : index)}
+
+          <div className="settings-expandable-field">
+            <span className="settings-expandable-label">Used on {reused.entries.length} accounts:</span>
+            <div className="settings-expandable-accounts">
+              {reused.entries.map((entry) => (
+                <button
+                  key={entry.entry_id}
+                  className="settings-expandable-account"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onSelectEntry(entry.entry_id)
+                  }}
                 >
-                  <div className="settings-list-item-content">
-                    <AlertTriangle size={18} />
-                    <span>Password used {reused.count} times</span>
-                  </div>
-                  <div className="settings-list-item-meta">
-                    <span>{reused.entries.length} accounts</span>
-                    <ArrowRight size={16} />
-                  </div>
+                  <span>{entry.title}</span>
+                  <ExternalLink size={14} />
                 </button>
-
-                {expandedId === index && (
-                  <div className="settings-expandable-content">
-                    <div className="settings-expandable-field">
-                      <span className="settings-expandable-label">Password:</span>
-                      <div className="settings-expandable-value-row">
-                        <code className="settings-expandable-value">{reused.password}</code>
-                        <button 
-                          className="settings-icon-btn"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigator.clipboard.writeText(reused.password)
-                          }}
-                          title="Copy password"
-                        >
-                          <Copy size={14} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="settings-expandable-field">
-                      <span className="settings-expandable-label">Used on {reused.entries.length} accounts:</span>
-                      <div className="settings-expandable-accounts">
-                        {reused.entries.map((entry) => (
-                          <button
-                            key={entry.entry_id}
-                            className="settings-expandable-account"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onSelectEntry(entry.entry_id)
-                            }}
-                          >
-                            <span>{entry.title}</span>
-                            <ExternalLink size={14} />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        )}
-
-        <div className="settings-actions">
-          <button className="settings-button settings-button-ghost" onClick={loadReusedPasswords}>
-            <RotateCw size={16} />
-            Refresh
-          </button>
         </div>
-      </div>
-    </div>
+      )}
+    />
   )
 }

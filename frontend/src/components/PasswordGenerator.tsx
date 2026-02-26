@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { Shuffle, Copy, Check } from 'lucide-react'
 import StrengthMeter from './StrengthMeter'
@@ -35,18 +35,7 @@ export default function PasswordGenerator({
   const [copied, setCopied] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    generatePassword()
-  }, [options])
-
-  useEffect(() => {
-    if (copied) {
-      const timer = setTimeout(() => setCopied(false), 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [copied])
-
-  const generatePassword = async () => {
+  const generatePassword = useCallback(async () => {
     try {
       const result = await invoke('generate_password', {
         options: {
@@ -65,28 +54,28 @@ export default function PasswordGenerator({
     } catch (error) {
       console.error('Failed to generate password:', error)
     }
-  }
+  }, [options.length, options.uppercase, options.lowercase, options.numbers, options.symbols, options.excludeAmbiguous])
 
-  const handleCopy = async () => {
+  const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(generatedPassword)
     setCopied(true)
-  }
+  }, [generatedPassword])
 
-  const handleUsePassword = () => {
+  const handleUsePassword = useCallback(() => {
     onPasswordSelect(generatedPassword)
-  }
+  }, [onPasswordSelect, generatedPassword])
 
   const toggleOption = (key: keyof PasswordOptions) => {
     if (key === 'length') return
     setOptions(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
-  const handleLengthChange = (delta: number) => {
+  const handleLengthChange = useCallback((delta: number) => {
     const newLength = Math.max(8, Math.min(128, options.length + delta))
     setOptions(prev => ({ ...prev, length: newLength }))
-  }
+  }, [options.length])
 
-  const handleKeyDown = (e: Event) => {
+  const handleKeyDown = useCallback((e: Event) => {
     const keyboardEvent = e as KeyboardEvent
     const target = keyboardEvent.target as HTMLElement
 
@@ -115,7 +104,18 @@ export default function PasswordGenerator({
         handleLengthChange(-4)
         break
     }
-  }
+  }, [handleUsePassword, onCancel, generatePassword, handleLengthChange])
+
+  useEffect(() => {
+    generatePassword()
+  }, [generatePassword])
+
+  useEffect(() => {
+    if (copied) {
+      const timer = setTimeout(() => setCopied(false), 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [copied])
 
   useEffect(() => {
     const container = containerRef.current
@@ -123,7 +123,7 @@ export default function PasswordGenerator({
       container.addEventListener('keydown', handleKeyDown)
       return () => container.removeEventListener('keydown', handleKeyDown)
     }
-  }, [options, generatedPassword])
+  }, [handleKeyDown])
 
   return (
     <div ref={containerRef} className="password-generator">
