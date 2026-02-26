@@ -52,7 +52,6 @@ function PaletteList({ items, selectedIndex, onSelect, emptyMessage = 'No result
               alt=""
               className="palette-list-item-icon-img"
               onError={() => {
-                console.log('Favicon failed to load:', item.iconUrl)
                 setFailedIcons((prev) => new Set(prev).add(item.iconUrl!))
               }}
             />

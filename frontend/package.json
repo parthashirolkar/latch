@@ -1,6 +1,6 @@
 {
   "name": "latch-frontend",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Latch Password Manager Frontend",
   "type": "module",
   "scripts": {
@@ -22,7 +22,7 @@
     "@tauri-apps/plugin-process": "2.3.1",
     "@tauri-apps/plugin-shell": "2.3.3",
     "@tauri-apps/plugin-updater": "2.10.0",
-"lucide-react": "^0.563.0",
+    "lucide-react": "^0.563.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "zod": "^3.24.1"
