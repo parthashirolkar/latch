@@ -111,8 +111,14 @@ fn validate_entry_fields(
 
     if let Some(url_val) = url {
         if !url_val.trim().is_empty() {
-            if let Err(e) = url::Url::parse(url_val) {
-                return Err(format!("Invalid URL: {}", e));
+            match url::Url::parse(url_val) {
+                Ok(parsed) => {
+                    let scheme = parsed.scheme();
+                    if scheme != "http" && scheme != "https" {
+                        return Err("URL must use http or https scheme".to_string());
+                    }
+                }
+                Err(e) => return Err(format!("Invalid URL: {}", e)),
             }
         }
     }
