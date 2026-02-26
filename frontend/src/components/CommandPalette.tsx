@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { z } from 'zod'
 import {
@@ -17,6 +17,7 @@ import PaletteInput from './PaletteInput'
 import PaletteList, { PaletteListItem } from './PaletteList'
 import { createEntryActions, createUtilityActions, Action } from './PaletteActions'
 import { useKeyboardNav } from '../hooks/useKeyboardNav'
+import { useDebounce } from '../hooks/useDebounce'
 import { fetchFavicon } from '../utils/favicon'
 import OAuthSignIn from './OAuthSignIn'
 import BiometricSignIn from './BiometricSignIn'
@@ -109,19 +110,24 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
   const [entryToEdit, setEntryToEdit] = useState<Entry | null>(null)
   const [entryForGenerator, setEntryForGenerator] = useState<Entry | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
   const paletteRef = useRef<HTMLDivElement>(null)
+
+  const debouncedInputValue = useDebounce(inputValue, 300)
 
   useEffect(() => {
     setSelectedIndex(0)
   }, [mode, searchResults, actions])
 
-  const handleSearch = async (query: string) => {
+  const handleSearch = useCallback(async (query: string) => {
     if (query.length < 2) {
       setSearchResults([])
+      setIsLoading(false)
       return
     }
 
     try {
+      setIsLoading(true)
       const result = await invoke('search_entries', { query })
       const entries = EntriesSchema.parse(JSON.parse(result as string))
       setSearchResults(entries)
@@ -132,8 +138,10 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
       }
       console.error('Search failed:', error)
       setSearchResults([])
+    } finally {
+      setIsLoading(false)
     }
-  }
+  }, [])
 
   const handleCopyPassword = async (entryId: string) => {
     try {
@@ -180,7 +188,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     }
   }
 
-  const handleLock = async () => {
+  const handleLock = useCallback(async () => {
     try {
       await invoke('lock_vault')
       await setModeToLogin()
@@ -190,7 +198,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     } catch (error) {
       console.error('Failed to lock vault:', error)
     }
-  }
+  }, [])
 
   const handleAddEntry = async () => {
     setError('')
@@ -396,12 +404,13 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   })
 
   useEffect(() => {
-    if (mode === 'search' && inputValue.length >= 2) {
-      handleSearch(inputValue)
+    if (mode === 'search' && debouncedInputValue.length >= 2) {
+      handleSearch(debouncedInputValue)
     } else if (mode === 'search') {
       setSearchResults([])
+      setIsLoading(false)
     }
-  }, [inputValue, mode])
+  }, [debouncedInputValue, mode, handleSearch])
 
   useEffect(() => {
     if (mode === 'search' && searchResults.length > 0 && selectedIndex >= 0) {
@@ -414,49 +423,49 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     }
   }, [selectedIndex, searchResults, mode])
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.shiftKey && e.key === 'Backspace' && hoveredEntryId && mode === 'search') {
-        e.preventDefault()
-        const entry = searchResults.find((ent) => ent.id === hoveredEntryId)
-        if (entry) {
-          setEntryToDelete(entry)
-          setMode('delete-confirm')
-          setSelectedIndex(0)
-        }
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'l' && mode === 'search') {
-        e.preventDefault()
-        handleLock()
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'g' && mode === 'search') {
-        e.preventDefault()
-        setEntryForGenerator(null)
-        setMode('password-generator')
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'h' && mode === 'search') {
-        e.preventDefault()
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.shiftKey && e.key === 'Backspace' && hoveredEntryId && mode === 'search') {
+      e.preventDefault()
+      const entry = searchResults.find((ent) => ent.id === hoveredEntryId)
+      if (entry) {
+        setEntryToDelete(entry)
+        setMode('delete-confirm')
+        setSelectedIndex(0)
+      }
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'l' && mode === 'search') {
+      e.preventDefault()
+      handleLock()
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'g' && mode === 'search') {
+      e.preventDefault()
+      setEntryForGenerator(null)
+      setMode('password-generator')
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'h' && mode === 'search') {
+      e.preventDefault()
+      setMode('vault-health')
+    } else if (e.key === ',' && mode === 'search') {
+      e.preventDefault()
+      setMode('settings')
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      if (mode === 'settings') {
+        setMode('search')
+        setInputValue('')
+        setSearchResults([])
+      } else if (mode === 'vault-health') {
+        setMode('search')
+      } else if (mode === 'health-weak' || mode === 'health-reused' || mode === 'health-breached') {
         setMode('vault-health')
-      } else if (e.key === ',' && mode === 'search') {
-        e.preventDefault()
-        setMode('settings')
-      } else if (e.key === 'Escape') {
-        e.preventDefault()
-        if (mode === 'settings') {
-          setMode('search')
-          setInputValue('')
-          setSearchResults([])
-        } else if (mode === 'vault-health') {
-          setMode('search')
-        } else if (mode === 'health-weak' || mode === 'health-reused' || mode === 'health-breached') {
-          setMode('vault-health')
-        } else if (mode === 'password-generator') {
-          setEntryForGenerator(null)
-          setMode('search')
-        }
+      } else if (mode === 'password-generator') {
+        setEntryForGenerator(null)
+        setMode('search')
       }
     }
+  }, [hoveredEntryId, mode, searchResults, handleLock])
 
+  useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [hoveredEntryId, mode, searchResults])
+  }, [handleKeyDown])
 
    const getPlaceholder = () => {
      switch (mode) {
@@ -653,17 +662,17 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
          />
       ) : (
         <>
-          <PaletteInput
-            value={inputValue}
-            onChange={setInputValue}
-            onSubmit={undefined}
-            placeholder={getPlaceholder()}
-            type="text"
-            icon={getIcon()}
-            autoFocus={true}
-            disabled={false}
-            iconSpin={false}
-          />
+           <PaletteInput
+             value={inputValue}
+             onChange={setInputValue}
+             onSubmit={undefined}
+             placeholder={getPlaceholder()}
+             type="text"
+             icon={getIcon()}
+             autoFocus={true}
+             disabled={false}
+             iconSpin={isLoading}
+           />
 
           {error && <div className="palette-error">{error}</div>}
 

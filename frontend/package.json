@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@choochmeque/tauri-plugin-biometry-api": "^0.2.6",
@@ -28,6 +30,7 @@
   "devDependencies": {
     "@eslint/js": "^9.24.0",
     "@tauri-apps/cli": "^2.9.6",
+    "@testing-library/react": "^16.0.0",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
@@ -35,8 +38,10 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
+    "jsdom": "^26.0.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.29.1",
-    "vite": "^7.3.0"
+    "vite": "^7.3.0",
+    "vitest": "^3.0.0"
   }
 }
