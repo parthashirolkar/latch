@@ -117,13 +117,21 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const [entryToEdit, setEntryToEdit] = useState<Entry | null>(null)
   const [entryForGenerator, setEntryForGenerator] = useState<Entry | null>(null)
   const paletteRef = useRef<HTMLDivElement>(null)
-  const clearClipboardTimeoutRef = useRef<number | null>(null)
+  const clearClipboardTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const debouncedInputValue = useDebounce(inputValue, 300)
 
   useEffect(() => {
     setSelectedIndex(0)
   }, [mode, searchResults, actions])
+
+  useEffect(() => {
+    return () => {
+      if (clearClipboardTimeoutRef.current !== null) {
+        window.clearTimeout(clearClipboardTimeoutRef.current)
+      }
+    }
+  }, [])
 
 
 
@@ -148,7 +156,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
               await navigator.clipboard.writeText('')
             }
           } catch {
-            // ignore
+            // Ignore clipboard read errors - may be denied by browser/OS
           }
         }, 30000)
       } else {

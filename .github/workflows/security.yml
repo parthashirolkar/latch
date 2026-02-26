@@ -41,7 +41,7 @@ jobs:
 
       - name: Run frontend audit
         working-directory: ./frontend
-        run: bun pm scan || true
+        run: bun pm scan
 
   dependency-review:
     name: Dependency Review
