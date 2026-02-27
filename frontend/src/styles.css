@@ -72,6 +72,9 @@ body,
   --warning-text: #FFB84D;
   --success-bg: #0F331F;
   --success-text: #4DFF94;
+
+  /* Slider Track */
+  --slider-track: #333333;
 }
 
 body {
@@ -276,7 +279,7 @@ body {
 }
 
 .palette-list-item.selected .palette-list-item-subtitle {
-  color: #111111;
+  color: var(--bg-primary);
 }
 
 .palette-list-item-icon {
@@ -533,20 +536,27 @@ body {
   padding: 12px 24px;
   background: var(--accent-primary);
   color: var(--bg-primary);
-  border: none;
-  border-radius: 4px;
+  border: var(--border-default);
+  border-radius: 0;
   font-size: var(--font-base);
-  font-weight: 500;
+  font-weight: 800;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   cursor: pointer;
-  transition: opacity 0.2s ease, transform 0.1s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  box-shadow: 4px 4px 0px var(--text-primary);
 }
 
 .migrate-button:hover:not(:disabled) {
-  opacity: 0.9;
+  background: var(--accent-hover);
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px var(--text-primary);
 }
 
 .migrate-button:active {
-  transform: scale(0.98);
+  transform: translate(4px, 4px);
+  box-shadow: none;
 }
 
 .migrate-button:disabled {
@@ -779,7 +789,7 @@ body {
 
 .settings-button-primary {
   background: var(--accent-primary);
-  color: #FFFFFF;
+  color: var(--bg-primary);
 }
 
 .settings-button-primary:hover:not(:disabled) {
@@ -1140,13 +1150,13 @@ body {
 
 .confirmation-modal-content {
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border: var(--border-default);
+  border-radius: 0;
   padding: 24px;
   max-width: 360px;
   width: calc(100% - 32px);
   margin: 0 16px;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+  box-shadow: 6px 6px 0px var(--text-primary);
 }
 
 .confirmation-modal-message {
@@ -1164,7 +1174,7 @@ body {
 .confirmation-modal-actions button {
   flex: 1;
   padding: 10px 16px;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: var(--font-sm);
   font-weight: 500;
   cursor: pointer;
@@ -1217,10 +1227,11 @@ body {
 
 .password-generator-display {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border: var(--border-default);
+  border-radius: 0;
   padding: 16px;
   margin-bottom: 8px;
+  box-shadow: var(--box-shadow);
 }
 
 .password-generator-value {
@@ -1271,7 +1282,7 @@ body {
 .password-generator-slider input[type="range"] {
   flex: 1;
   height: 4px;
-  background: #444444;
+  background: var(--slider-track);
   border-radius: 2px;
   outline: none;
   -webkit-appearance: none;
@@ -1718,12 +1729,16 @@ body {
 .health-list-item-button {
   flex: 1;
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: var(--font-sm);
-  font-weight: 500;
+  font-weight: 800;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   cursor: pointer;
-  transition: all 0.18s ease;
-  border: 1px solid transparent;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  border: var(--border-default);
+  box-shadow: 3px 3px 0px var(--text-primary);
 }
 
 .health-list-item-button-secondary {
@@ -1735,22 +1750,24 @@ body {
 .health-list-item-button-secondary:hover:not(:disabled) {
   background: var(--bg-tertiary);
   color: var(--text-primary);
-  border-color: var(--border-strong);
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px var(--text-primary);
 }
 
 .health-list-item-button-primary {
   background: var(--accent-primary);
   color: var(--bg-primary);
-  border-color: var(--accent-primary);
 }
 
 .health-list-item-button-primary:hover:not(:disabled) {
-  background: #00e08e;
-  border-color: #00e08e;
+  background: var(--accent-hover);
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px var(--text-primary);
 }
 
 .health-list-item-button:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: translate(3px, 3px);
+  box-shadow: none;
 }
 
 .health-list-item-button:disabled {
