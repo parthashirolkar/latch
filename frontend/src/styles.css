@@ -187,6 +187,19 @@ body {
   text-transform: none;
 }
 
+/* Hide native browser/WebView2 password reveal button */
+.palette-input::-ms-reveal {
+  display: none;
+}
+
+.palette-input::-ms-clear {
+  display: none;
+}
+
+.palette-input::-webkit-credentials-auto-fill-button {
+  display: none;
+}
+
 .palette-input:disabled {
   cursor: not-allowed;
   opacity: 0.5;

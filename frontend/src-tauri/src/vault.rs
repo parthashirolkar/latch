@@ -10,7 +10,7 @@ use zeroize::Zeroize;
 
 use crate::oauth::derive_key_from_oauth;
 
-const SESSION_TIMEOUT_SECS: u64 = 30 * 60;
+pub const SESSION_TIMEOUT_SECS: u64 = 30 * 60;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Entry {

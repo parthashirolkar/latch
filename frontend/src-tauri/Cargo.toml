@@ -1,6 +1,6 @@
 [package]
 name = "latch"
-version = "0.2.1"
+version = "0.2.2"
 description = "Latch Password Manager"
 authors = ["parthashirolkar"]
 license = "MIT"
@@ -48,6 +48,7 @@ sha1 = "0.10.6"
 reqwest = { version = "0.12", features = ["rustls-tls"] }
 zeroize = { version = "1.7", features = ["derive"] }
 url = "2.5"
+tokio = { version = "1", features = ["time"] }
 
 [dev-dependencies]
 tempfile = "3"
