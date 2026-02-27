@@ -71,7 +71,6 @@ export default function BiometricSignIn({
         ) : (
           <>
             <h2>Unlock Latch</h2>
-            <p>Authenticate with biometric verification to access your passwords</p>
           </>
         )}
       </div>

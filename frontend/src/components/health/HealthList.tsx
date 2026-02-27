@@ -95,7 +95,7 @@ export function HealthList<T>({
                   {renderItem(item, index)}
                 </div>
                 {expandedIndex === index && (
-                  <div onClick={(e) => e.stopPropagation()}>
+                  <div style={{ marginTop: '12px' }} onClick={(e) => e.stopPropagation()}>
                     {renderExpandedContent(item, index)}
                   </div>
                 )}

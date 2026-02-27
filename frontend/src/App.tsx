@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { z } from 'zod'
 import CommandPalette from './components/CommandPalette'
 import { useWindowAutoResize } from './hooks/useWindowAutoResize'
@@ -32,6 +33,15 @@ function App() {
 
   useEffect(() => {
     checkVaultStatus()
+  }, [])
+
+  useEffect(() => {
+    const unlisten = listen('vault-locked', () => {
+      checkVaultStatus()
+    })
+    return () => {
+      unlisten.then((fn) => fn())
+    }
   }, [])
 
   const checkVaultStatus = async () => {

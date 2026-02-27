@@ -552,10 +552,11 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
           onPasswordSelect={(password) => {
             if (entryForGenerator) {
               setEntryToEdit(entryForGenerator)
-              setFormData({ ...formData, password })
+              setFormData((prev) => ({ ...prev, password }))
               setMode('edit-entry')
             } else {
-              setFormData({ ...formData, password })
+              setFormData({ title: '', username: '', password, url: '' })
+              setMode('add-entry')
             }
           }}
           onCancel={() => {
@@ -563,7 +564,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
               setEntryForGenerator(null)
               setMode('edit-entry')
             } else {
-              setMode('add-entry')
+              setMode('search')
             }
           }}
           initialLength={16}

@@ -7,13 +7,13 @@ mod vault_health;
 use oauth::get_user_id_from_token;
 use serde_json::json;
 use std::fs;
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant, SystemTime};
 use tauri::menu::{MenuBuilder, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_global_shortcut::ShortcutState;
-use vault::Vault;
+use vault::{Vault, SESSION_TIMEOUT_SECS};
 
 const MAX_FAILED_ATTEMPTS: u32 = 10;
 const BASE_LOCKOUT_DURATION: Duration = Duration::from_secs(5);
@@ -135,7 +135,23 @@ const KDF_OAUTH_PBKDF2: &str = "oauth-pbkdf2";
 #[allow(dead_code)]
 const KDF_BIOMETRIC_KEYCHAIN: &str = "biometric-keychain";
 
-struct VaultState(Mutex<Vault>);
+struct VaultState(Arc<Mutex<Vault>>);
+
+fn spawn_session_timer(
+    app_handle: AppHandle,
+    vault_arc: Arc<Mutex<Vault>>,
+    session_start: SystemTime,
+) {
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(SESSION_TIMEOUT_SECS)).await;
+        if let Ok(mut vault) = vault_arc.lock() {
+            if vault.session_start == Some(session_start) {
+                vault.lock_vault();
+                let _ = app_handle.emit("vault-locked", ());
+            }
+        }
+    });
+}
 
 fn setup_system_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let show_item = MenuItem::with_id(app, "show", "Show Latch", true, None::<&str>)?;
@@ -199,7 +215,7 @@ pub fn run() {
             }
 
             let vault = Vault::new().expect("Failed to initialize vault");
-            app.manage(VaultState(Mutex::new(vault)));
+            app.manage(VaultState(Arc::new(Mutex::new(vault))));
             app.manage(AuthState::new());
 
             let handle = app.handle().clone();
@@ -421,6 +437,7 @@ async fn init_vault_oauth(
 #[tauri::command]
 async fn unlock_vault_oauth(
     id_token: String,
+    app_handle: AppHandle,
     vault_state: State<'_, VaultState>,
     auth_state: State<'_, AuthState>,
 ) -> Result<String, String> {
@@ -446,6 +463,9 @@ async fn unlock_vault_oauth(
     match vault.unlock_with_oauth(&user_id) {
         Ok(_) => {
             auth.reset();
+            if let Some(start) = vault.session_start {
+                spawn_session_timer(app_handle, Arc::clone(&vault_state.0), start);
+            }
             Ok(json!({"status": "success"}).to_string())
         }
         Err(e) => {
@@ -485,6 +505,7 @@ async fn init_vault_with_key(
 #[tauri::command]
 async fn unlock_vault_with_key(
     key_hex: String,
+    app_handle: AppHandle,
     vault_state: State<'_, VaultState>,
     auth_state: State<'_, AuthState>,
 ) -> Result<String, String> {
@@ -516,6 +537,9 @@ async fn unlock_vault_with_key(
     match vault.unlock_with_key(&key) {
         Ok(_) => {
             auth.reset();
+            if let Some(start) = vault.session_start {
+                spawn_session_timer(app_handle, Arc::clone(&vault_state.0), start);
+            }
             Ok(json!({"status": "success"}).to_string())
         }
         Err(e) => {
@@ -548,6 +572,7 @@ async fn init_vault(password: String, state: State<'_, VaultState>) -> Result<St
 #[tauri::command]
 async fn unlock_vault(
     password: String,
+    app_handle: AppHandle,
     vault_state: State<'_, VaultState>,
     auth_state: State<'_, AuthState>,
 ) -> Result<String, String> {
@@ -597,6 +622,9 @@ async fn unlock_vault(
     match vault.unlock_with_key(&key) {
         Ok(_) => {
             auth.reset();
+            if let Some(start) = vault.session_start {
+                spawn_session_timer(app_handle, Arc::clone(&vault_state.0), start);
+            }
             Ok(json!({"status": "success"}).to_string())
         }
         Err(e) => {
