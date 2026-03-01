@@ -21,8 +21,6 @@ interface AuthPreferences {
   session_remaining_seconds: number
 }
 
-interface SettingsProps {}
-
 function getAuthMethodLabel(authMethod: string): string {
   switch (authMethod) {
     case 'oauth-pbkdf2':
@@ -35,7 +33,7 @@ function getAuthMethodLabel(authMethod: string): string {
   }
 }
 
-function Settings(_props: SettingsProps) {
+function Settings() {
   const [preferences, setPreferences] = useState<AuthPreferences>({
     auth_method: 'none',
     session_valid: false,
