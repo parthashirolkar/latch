@@ -11,6 +11,7 @@ import {
   clearStoredKey
 } from '../utils/biometricKeys'
 import ConfirmationModal from './ConfirmationModal'
+import { useTheme, THEMES } from '../hooks/useTheme'
 
 type AuthMethod = 'oauth-pbkdf2' | 'oauth-argon2id' | 'biometric-keychain'
 
@@ -19,6 +20,8 @@ interface AuthPreferences {
   session_valid: boolean
   session_remaining_seconds: number
 }
+
+interface SettingsProps {}
 
 function getAuthMethodLabel(authMethod: string): string {
   switch (authMethod) {
@@ -32,7 +35,7 @@ function getAuthMethodLabel(authMethod: string): string {
   }
 }
 
-function Settings() {
+function Settings(_props: SettingsProps) {
   const [preferences, setPreferences] = useState<AuthPreferences>({
     auth_method: 'none',
     session_valid: false,
@@ -59,6 +62,7 @@ function Settings() {
   const [downloadProgress, setDownloadProgress] = useState(0)
   const [totalDownloadSize, setTotalDownloadSize] = useState(0)
   const [isDownloading, setIsDownloading] = useState(false)
+  const { theme, setTheme } = useTheme()
 
   useEffect(() => {
     loadPreferences()
@@ -120,9 +124,9 @@ function Settings() {
     try {
       setCheckingUpdate(true)
       setError('')
-      
+
       const update = await check()
-      
+
       if (update?.available) {
         setUpdateAvailable(true)
         setUpdateInfo({
@@ -130,17 +134,17 @@ function Settings() {
           body: update.body || 'No release notes available.',
           date: update.date || ''
         })
-        
+
         const shouldUpdate = await ask(
           `Version ${update.version} is available. You're currently on version ${appVersion}. \n\nRelease notes:\n${update.body}\n\nWould you like to install this update?`,
           { title: 'Update Available', kind: 'info' }
         )
-        
+
         if (shouldUpdate) {
           setIsDownloading(true)
           setDownloadProgress(0)
           setTotalDownloadSize(0)
-          
+
           await update.downloadAndInstall((event) => {
             switch (event.event) {
               case 'Started':
@@ -154,7 +158,7 @@ function Settings() {
                 break
             }
           })
-          
+
           await message('Update downloaded successfully! The app will now restart to install the update.', { kind: 'info' })
           await relaunch()
         }
@@ -165,9 +169,9 @@ function Settings() {
     } catch (err) {
       console.error('Failed to check for updates:', err)
       setUpdateAvailable(false)
-      
+
       const errorMessage = err instanceof Error ? err.message : String(err)
-      
+
       if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network') || errorMessage.includes('ECONNREFUSED')) {
         await message('Unable to check for updates. Please check your internet connection and try again.', { title: 'Network Error', kind: 'error' })
       } else {
@@ -308,135 +312,165 @@ function Settings() {
   const currentLabel = getAuthMethodLabel(preferences.auth_method)
 
   return (
-    <div className="settings-container">
-      <header className="settings-header">
-        <h2>Authentication</h2>
-        <div className="settings-header-meta">
-          <span className="settings-current-badge">{currentLabel}</span>
-          {preferences.session_valid && (
-            <span className="settings-session-timer">
-              {getSessionTimeRemaining()}
-            </span>
-          )}
-        </div>
-      </header>
-
-      <div className="settings-body">
-        <p className="settings-instruction">
-          Choose how you unlock your vault. Switching re-encrypts your data.
-        </p>
-
-        <div className="settings-radio-group">
-          <label
-            className={`settings-radio-option ${selectedMethod === 'biometric-keychain' ? 'selected' : ''} ${!biometricAvailable ? 'disabled' : ''}`}
-          >
-            <input
-              type="radio"
-              name="auth-method"
-              value="biometric-keychain"
-              checked={selectedMethod === 'biometric-keychain'}
-              onChange={() => setSelectedMethod('biometric-keychain')}
-              disabled={!biometricAvailable || switching}
-            />
-            <span className="settings-radio-label">Biometric</span>
-            <span className="settings-radio-description">
-              Fingerprint or face
-            </span>
-          </label>
-          <label
-            className={`settings-radio-option ${selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'selected' : ''}`}
-          >
-            <input
-              type="radio"
-              name="auth-method"
-              value="oauth-pbkdf2"
-              checked={selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id'}
-              onChange={() => setSelectedMethod('oauth-pbkdf2')}
-              disabled={switching}
-            />
-            <span className="settings-radio-label">Google OAuth</span>
-            <span className="settings-radio-description">
-              Sign in with Google
-            </span>
-          </label>
-        </div>
-
-        {hasChanges && (
-          <div className="settings-actions">
-            <button
-              className="settings-button settings-button-ghost"
-              onClick={handleCancel}
-              disabled={switching}
-            >
-              Cancel
-            </button>
-            <button
-              className="settings-button settings-button-primary"
-              onClick={handleSave}
-              disabled={switching}
-            >
-              {switching ? 'Saving…' : 'Save'}
-            </button>
-          </div>
-        )}
-
-        {!biometricAvailable && preferences.auth_method !== 'biometric-keychain' && (
-          <p className="settings-hint">
-            Biometric authentication is not available on this device.
-          </p>
-        )}
-
-        <p className="settings-footnote">
-          Vault is encrypted locally. No backup. Lost access = lost data.
-        </p>
-      </div>
-
-      <div className="settings-section" style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
-        <header className="settings-header" style={{ marginBottom: '16px' }}>
-          <h2>Updates</h2>
+    <div className="settings-container-grid">
+      <div className="settings-column">
+        <header className="settings-header">
+          <h2>Authentication</h2>
           <div className="settings-header-meta">
-            <span className="settings-current-badge">v{appVersion}</span>
+            <span className="settings-current-badge">{currentLabel}</span>
+            {preferences.session_valid && (
+              <span className="settings-session-timer">
+                {getSessionTimeRemaining()}
+              </span>
+            )}
           </div>
         </header>
+
         <div className="settings-body">
-          <p className="settings-instruction" style={{ marginBottom: '12px' }}>
-            Check for updates to get the latest features and security improvements.
+          <p className="settings-instruction">
+            Choose how you unlock your vault. Switching re-encrypts your data.
           </p>
-          <button
-            className="settings-button settings-button-primary"
-            onClick={checkForUpdates}
-            disabled={checkingUpdate || isDownloading || switching}
-            style={{ width: '100%', justifyContent: 'center' }}
-          >
-            {checkingUpdate ? 'Checking…' : isDownloading ? 'Downloading…' : 'Check for Updates'}
-          </button>
-          {isDownloading && totalDownloadSize > 0 && (
-            <div style={{ marginTop: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px', opacity: 0.8 }}>
-                <span>Downloading update...</span>
-                <span>{Math.round((downloadProgress / totalDownloadSize) * 100)}%</span>
-              </div>
-              <div style={{ width: '100%', height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
-                <div 
-                  style={{ 
-                    width: `${Math.min((downloadProgress / totalDownloadSize) * 100, 100)}%`, 
-                    height: '100%', 
-                    background: 'var(--accent-color)', 
-                    transition: 'width 0.2s ease' 
-                  }} 
-                />
-              </div>
-              <div style={{ fontSize: '11px', opacity: 0.6, marginTop: '4px' }}>
-                {(downloadProgress / (1024 * 1024)).toFixed(1)} MB / {(totalDownloadSize / (1024 * 1024)).toFixed(1)} MB
-              </div>
+
+          <div className="settings-radio-group">
+            <label
+              className={`settings-radio-option ${selectedMethod === 'biometric-keychain' ? 'selected' : ''} ${!biometricAvailable ? 'disabled' : ''}`}
+            >
+              <input
+                type="radio"
+                name="auth-method"
+                value="biometric-keychain"
+                checked={selectedMethod === 'biometric-keychain'}
+                onChange={() => setSelectedMethod('biometric-keychain')}
+                disabled={!biometricAvailable || switching}
+              />
+              <span className="settings-radio-label">Biometric</span>
+              <span className="settings-radio-description">
+                Fingerprint or face
+              </span>
+            </label>
+            <label
+              className={`settings-radio-option ${selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'selected' : ''}`}
+            >
+              <input
+                type="radio"
+                name="auth-method"
+                value="oauth-pbkdf2"
+                checked={selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id'}
+                onChange={() => setSelectedMethod('oauth-pbkdf2')}
+                disabled={switching}
+              />
+              <span className="settings-radio-label">Google OAuth</span>
+              <span className="settings-radio-description">
+                Sign in with Google
+              </span>
+            </label>
+          </div>
+
+          {hasChanges && (
+            <div className="settings-actions">
+              <button
+                className="settings-button settings-button-ghost"
+                onClick={handleCancel}
+                disabled={switching}
+              >
+                Cancel
+              </button>
+              <button
+                className="settings-button settings-button-primary"
+                onClick={handleSave}
+                disabled={switching}
+              >
+                {switching ? 'Saving…' : 'Save'}
+              </button>
             </div>
           )}
-          {updateAvailable && updateInfo && !isDownloading && (
-            <div className="settings-update-info" style={{ marginTop: '12px', padding: '12px', background: 'var(--highlight-bg)', borderRadius: '8px', fontSize: '14px' }}>
-              <div style={{ fontWeight: 600, marginBottom: '4px' }}>Update Available: v{updateInfo.version}</div>
-              <div style={{ opacity: 0.8 }}>{updateInfo.body}</div>
-            </div>
+
+          {!biometricAvailable && preferences.auth_method !== 'biometric-keychain' && (
+            <p className="settings-hint">
+              Biometric authentication is not available on this device.
+            </p>
           )}
+
+          <p className="settings-footnote">
+            Vault is encrypted locally. No backup. Lost access = lost data.
+          </p>
+        </div>
+
+        <div className="theme-picker-section">
+          <header className="settings-header" style={{ marginBottom: '12px' }}>
+            <h2>Appearance</h2>
+          </header>
+          <div className="settings-body">
+            <p className="settings-instruction">
+              Choose the UI theme that suits your style. Changes apply instantly.
+            </p>
+            <div className="theme-picker-grid">
+              {THEMES.map((t) => (
+                <div
+                  key={t.id}
+                  className={`theme-picker-card ${theme === t.id ? 'active' : ''}`}
+                  onClick={() => setTheme(t.id)}
+                >
+                  <div className="theme-picker-swatch">
+                    <div className="theme-picker-swatch-bg" style={{ background: t.bg }} />
+                    <div className="theme-picker-swatch-accent" style={{ background: t.primary }} />
+                  </div>
+                  <span className="theme-picker-name">{t.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-column">
+        <div className="settings-section">
+          <header className="settings-header" style={{ marginBottom: '16px' }}>
+            <h2>Updates</h2>
+            <div className="settings-header-meta">
+              <span className="settings-current-badge">v{appVersion}</span>
+            </div>
+          </header>
+          <div className="settings-body">
+            <p className="settings-instruction" style={{ marginBottom: '12px' }}>
+              Check for updates to get the latest features and security improvements.
+            </p>
+            <button
+              className="settings-button settings-button-primary"
+              onClick={checkForUpdates}
+              disabled={checkingUpdate || isDownloading || switching}
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              {checkingUpdate ? 'Checking…' : isDownloading ? 'Downloading…' : 'Check for Updates'}
+            </button>
+            {isDownloading && totalDownloadSize > 0 && (
+              <div style={{ marginTop: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px', opacity: 0.8 }}>
+                  <span>Downloading update...</span>
+                  <span>{Math.round((downloadProgress / totalDownloadSize) * 100)}%</span>
+                </div>
+                <div style={{ width: '100%', height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${Math.min((downloadProgress / totalDownloadSize) * 100, 100)}%`,
+                      height: '100%',
+                      background: 'var(--accent-color)',
+                      transition: 'width 0.2s ease'
+                    }}
+                  />
+                </div>
+                <div style={{ fontSize: '11px', opacity: 0.6, marginTop: '4px' }}>
+                  {(downloadProgress / (1024 * 1024)).toFixed(1)} MB / {(totalDownloadSize / (1024 * 1024)).toFixed(1)} MB
+                </div>
+              </div>
+            )}
+            {updateAvailable && updateInfo && !isDownloading && (
+              <div className="settings-update-info" style={{ marginTop: '12px', padding: '12px', background: 'var(--highlight-bg)', borderRadius: '8px', fontSize: '14px' }}>
+                <div style={{ fontWeight: 600, marginBottom: '4px' }}>Update Available: v{updateInfo.version}</div>
+                <div style={{ opacity: 0.8 }}>{updateInfo.body}</div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

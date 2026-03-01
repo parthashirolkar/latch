@@ -79,8 +79,8 @@ export default function PasswordGenerator({
     const keyboardEvent = e as KeyboardEvent
     const target = keyboardEvent.target as HTMLElement
 
-    // Don't handle keyboard events if focus is on the range slider
-    if (target.tagName === 'INPUT' && target.getAttribute('type') === 'range') {
+    // Don't interfere with checkbox navigation
+    if (target.tagName === 'INPUT' && target.getAttribute('type') === 'checkbox') {
       return
     }
 
@@ -120,13 +120,14 @@ export default function PasswordGenerator({
   useEffect(() => {
     const container = containerRef.current
     if (container) {
+      container.focus()
       container.addEventListener('keydown', handleKeyDown)
       return () => container.removeEventListener('keydown', handleKeyDown)
     }
   }, [handleKeyDown])
 
   return (
-    <div ref={containerRef} className="password-generator">
+    <div ref={containerRef} className="password-generator" tabIndex={-1}>
       <div className="password-generator-display">
         <div className="password-generator-value">{generatedPassword || 'Generating...'}</div>
       </div>

@@ -13,6 +13,7 @@ interface UseKeyboardShortcutsProps {
     setEntryForGenerator: (entry: Entry | null) => void
     setInputValue: (val: string) => void
     setSearchResults: (results: Entry[]) => void
+    enabled?: boolean
 }
 
 export function useKeyboardShortcuts({
@@ -25,9 +26,11 @@ export function useKeyboardShortcuts({
     handleLock,
     setEntryForGenerator,
     setInputValue,
-    setSearchResults
+    setSearchResults,
+    enabled = true
 }: UseKeyboardShortcutsProps) {
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
+        if (!enabled) return
         if (e.shiftKey && e.key === 'Backspace' && hoveredEntryId && mode === 'search') {
             e.preventDefault()
             const entry = searchResults.find((ent) => ent.id === hoveredEntryId)
@@ -64,10 +67,11 @@ export function useKeyboardShortcuts({
                 setMode('search')
             }
         }
-    }, [hoveredEntryId, mode, searchResults, handleLock, setEntryToDelete, setMode, setSelectedIndex, setEntryForGenerator, setInputValue, setSearchResults])
+    }, [enabled, hoveredEntryId, mode, searchResults, handleLock, setEntryToDelete, setMode, setSelectedIndex, setEntryForGenerator, setInputValue, setSearchResults])
 
     useEffect(() => {
+        if (!enabled) return
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [handleKeyDown])
+    }, [enabled, handleKeyDown])
 }

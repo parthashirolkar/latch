@@ -121,6 +121,17 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
 
   const debouncedInputValue = useDebounce(inputValue, 300)
 
+  // Watch for initialMode prop changes (e.g., when vault locks after timeout)
+  useEffect(() => {
+    setMode(initialMode)
+    // Clear input and errors when switching to auth mode
+    if (initialMode === 'oauth-login' || initialMode === 'biometric-login') {
+      setInputValue('')
+      setSearchResults([])
+      setError('')
+    }
+  }, [initialMode, setInputValue, setSearchResults])
+
   useEffect(() => {
     setSelectedIndex(0)
   }, [mode, searchResults, actions])
@@ -394,7 +405,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     onSelectedIndexChange: setSelectedIndex,
     onEnter: handleEnterKey,
     onEscape: handleEscape,
-    enabled: mode === 'search' || mode === 'actions' || mode === 'add-entry' || mode === 'edit-entry' || mode === 'delete-confirm' || mode === 'settings' || mode === 'vault-health' || mode === 'health-weak' || mode === 'health-reused' || mode === 'health-breached' || mode === 'password-generator',
+    enabled: mode === 'search' || mode === 'actions' || mode === 'add-entry' || mode === 'edit-entry' || mode === 'delete-confirm' || mode === 'vault-health' || mode === 'health-weak' || mode === 'health-reused' || mode === 'health-breached',
   })
 
   useEffect(() => {
@@ -426,7 +437,10 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     handleLock,
     setEntryForGenerator,
     setInputValue,
-    setSearchResults
+    setSearchResults,
+    enabled: mode === 'search' || mode === 'actions' || mode === 'settings' ||
+             mode === 'vault-health' || mode === 'health-weak' ||
+             mode === 'health-reused' || mode === 'health-breached'
   })
 
   const getPlaceholder = () => {
