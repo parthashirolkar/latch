@@ -12,6 +12,7 @@ Thumbs.db
 # AI tools
 .claude/
 .agent/
+GEMINI.md
 
 # Build outputs
 dist/
