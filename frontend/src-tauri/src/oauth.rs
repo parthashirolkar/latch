@@ -45,6 +45,38 @@ pub fn derive_key_from_oauth(user_id: &str) -> Result<[u8; 32], String> {
     Ok(key)
 }
 
+pub fn decode_id_token(id_token: &str) -> Result<GoogleIdToken, String> {
+    // Validate critical claims for security
+    // Note: Signature validation requires fetching Google's public keys (JWKs)
+    // which should be implemented for production. For now, we validate claims.
+    let client_id = env::var("LATCH_OAUTH_CLIENT_ID").unwrap_or_else(|_| String::new());
+
+    let mut validation = Validation::new(Algorithm::RS256);
+    validation.insecure_disable_signature_validation();
+    validation.validate_aud = true;
+    validation.validate_exp = true;
+    validation.validate_nbf = true;
+    validation.set_issuer(&["https://accounts.google.com", "accounts.google.com"]);
+
+    if !client_id.is_empty() {
+        validation.set_audience(&[&client_id]);
+    }
+
+    let token_data = decode::<GoogleIdToken>(
+        id_token,
+        &jsonwebtoken::DecodingKey::from_secret(&[]),
+        &validation,
+    )
+    .map_err(|e| format!("Failed to decode token: {}", e))?;
+
+    Ok(token_data.claims)
+}
+
+pub fn get_user_id_from_token(id_token: &str) -> Result<String, String> {
+    let claims = decode_id_token(id_token)?;
+    Ok(claims.sub)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -150,36 +182,4 @@ mod tests {
         let key = derive_key_from_oauth(unicode_user_id).unwrap();
         assert_eq!(key.len(), 32);
     }
-}
-
-pub fn decode_id_token(id_token: &str) -> Result<GoogleIdToken, String> {
-    // Validate critical claims for security
-    // Note: Signature validation requires fetching Google's public keys (JWKs)
-    // which should be implemented for production. For now, we validate claims.
-    let client_id = env::var("LATCH_OAUTH_CLIENT_ID").unwrap_or_else(|_| String::new());
-
-    let mut validation = Validation::new(Algorithm::RS256);
-    validation.insecure_disable_signature_validation();
-    validation.validate_aud = true;
-    validation.validate_exp = true;
-    validation.validate_nbf = true;
-    validation.set_issuer(&["https://accounts.google.com", "accounts.google.com"]);
-
-    if !client_id.is_empty() {
-        validation.set_audience(&[&client_id]);
-    }
-
-    let token_data = decode::<GoogleIdToken>(
-        id_token,
-        &jsonwebtoken::DecodingKey::from_secret(&[]),
-        &validation,
-    )
-    .map_err(|e| format!("Failed to decode token: {}", e))?;
-
-    Ok(token_data.claims)
-}
-
-pub fn get_user_id_from_token(id_token: &str) -> Result<String, String> {
-    let claims = decode_id_token(id_token)?;
-    Ok(claims.sub)
 }
