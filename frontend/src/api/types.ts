@@ -1,0 +1,69 @@
+import { z } from 'zod'
+
+export const CredentialSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  username: z.string(),
+  password: z.string(),
+  url: z.string().optional(),
+  icon_url: z.string().optional(),
+})
+export type Credential = z.infer<typeof CredentialSchema>
+
+export const CredentialPreviewSchema = CredentialSchema.omit({ password: true })
+export type CredentialPreview = z.infer<typeof CredentialPreviewSchema>
+
+export const SuccessResponseSchema = z.object({
+  status: z.literal('success'),
+  message: z.string().optional(),
+})
+
+export const ErrorResponseSchema = z.object({
+  status: z.literal('error'),
+  message: z.string(),
+})
+
+export const ResponseSchema = z.discriminatedUnion('status', [
+  SuccessResponseSchema,
+  ErrorResponseSchema,
+])
+
+export const SecretResponseSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('success'), value: z.string() }),
+  z.object({ status: z.literal('error'), message: z.string() }),
+])
+
+export const AuthMethodResponseSchema = z.object({
+  status: z.string(),
+  auth_method: z.string(),
+})
+
+export const PasswordOptionsSchema = z.object({
+  length: z.number().min(8).max(128),
+  uppercase: z.boolean(),
+  lowercase: z.boolean(),
+  numbers: z.boolean(),
+  symbols: z.boolean(),
+  exclude_ambiguous: z.boolean(),
+})
+export type PasswordOptions = z.infer<typeof PasswordOptionsSchema>
+
+export const StrengthReportSchema = z.object({
+  score: z.number(),
+  entropy: z.number(),
+  label: z.string(),
+  warnings: z.array(z.string()),
+  suggestions: z.array(z.string()),
+})
+export type StrengthReport = z.infer<typeof StrengthReportSchema>
+
+export const VaultHealthReportSchema = z.object({
+  overall_score: z.number(),
+  weak_passwords: z.array(z.any()),
+  reused_passwords: z.array(z.any()),
+  breached_credentials: z.array(z.any()),
+  total_entries: z.number(),
+  strong_passwords: z.number(),
+  average_entropy: z.number(),
+})
+export type VaultHealthReport = z.infer<typeof VaultHealthReportSchema>
