@@ -1,5 +1,5 @@
 import { LucideIcon } from 'lucide-react'
-import { Key, User, ArrowLeft, LogOut, Edit, Dice1, Shield } from 'lucide-react'
+import { Key, User, ArrowLeft, LogOut, Edit, Dice1, Shield, Trash2 } from 'lucide-react'
 
 export interface Action {
   id: string
@@ -38,7 +38,8 @@ export function createEntryActions(
   onCopyUsername: (id: string) => Promise<void>,
   onEdit: (id: string) => void | Promise<void>,
   onLock: () => void,
-  onBack: () => void
+  onBack: () => void,
+  onDelete: () => void | Promise<void>
 ): Action[] {
   return [
     {
@@ -61,6 +62,13 @@ export function createEntryActions(
       subtitle: entryTitle,
       icon: Edit,
       handler: () => onEdit(entryId),
+    },
+    {
+      id: 'delete',
+      title: 'Delete credential',
+      subtitle: `"${entryTitle}"`,
+      icon: Trash2,
+      handler: () => onDelete(),
     },
     {
       id: 'back',

@@ -58,6 +58,10 @@ function EntryActions({ entry, onModeChange, onLock }: EntryActionsProps) {
     onModeChange('search')
   }
 
+  const handleDelete = () => {
+    onModeChange('delete-confirm', entry)
+  }
+
   const actions = createEntryActions(
     entry.id,
     entry.title,
@@ -65,7 +69,8 @@ function EntryActions({ entry, onModeChange, onLock }: EntryActionsProps) {
     handleCopyUsername,
     handleEdit,
     onLock,
-    onBack
+    onBack,
+    handleDelete
   )
 
   const handleEnterKey = () => {
