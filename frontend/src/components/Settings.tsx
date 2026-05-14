@@ -291,7 +291,6 @@ function Settings() {
 
   return (
     <div className="px-5 py-5 animate-[settings-fade-in_0.3s_ease-out]">
-      <style>{`@keyframes settings-fade-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '32px', position: 'relative' }}>
         <div className="flex flex-col gap-4 items-start">
           <header className="flex items-baseline justify-between gap-3 flex-wrap pb-2.5 border-b border-[#555] mb-2">
