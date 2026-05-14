@@ -28,8 +28,8 @@ pub fn decrypt(key: &[u8; 32], data: &EncryptedData) -> Result<String, String> {
     let cipher = Aes256Gcm::new(key.into());
     let nonce_bytes =
         hex::decode(&data.nonce).map_err(|e| format!("Invalid nonce encoding: {}", e))?;
-    let ciphertext = hex::decode(&data.ciphertext)
-        .map_err(|e| format!("Invalid ciphertext encoding: {}", e))?;
+    let ciphertext =
+        hex::decode(&data.ciphertext).map_err(|e| format!("Invalid ciphertext encoding: {}", e))?;
 
     let nonce = Nonce::from_slice(&nonce_bytes);
 

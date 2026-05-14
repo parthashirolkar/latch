@@ -39,8 +39,8 @@ impl AuthAttemptState {
             ));
         }
 
-        let lockout_duration = BASE_LOCKOUT_DURATION
-            .saturating_mul(2_u32.pow(self.failed_attempts.saturating_sub(1)));
+        let lockout_duration =
+            BASE_LOCKOUT_DURATION.saturating_mul(2_u32.pow(self.failed_attempts.saturating_sub(1)));
         let lockout_duration = std::cmp::min(lockout_duration, MAX_LOCKOUT_DURATION);
         self.lockout_until = Some(Instant::now() + lockout_duration);
 

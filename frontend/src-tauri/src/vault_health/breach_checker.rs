@@ -8,13 +8,19 @@ pub struct BreachResult {
 }
 
 pub trait BreachChecker: Send + Sync {
-    fn check(&self, password: &str) -> Pin<Box<dyn Future<Output = Option<BreachResult>> + Send + '_>>;
+    fn check(
+        &self,
+        password: &str,
+    ) -> Pin<Box<dyn Future<Output = Option<BreachResult>> + Send + '_>>;
 }
 
 pub struct PwnedPasswordsApi;
 
 impl BreachChecker for PwnedPasswordsApi {
-    fn check(&self, password: &str) -> Pin<Box<dyn Future<Output = Option<BreachResult>> + Send + '_>> {
+    fn check(
+        &self,
+        password: &str,
+    ) -> Pin<Box<dyn Future<Output = Option<BreachResult>> + Send + '_>> {
         let password = password.to_string();
         Box::pin(async move {
             use sha1::{Digest, Sha1};
@@ -54,12 +60,16 @@ impl BreachChecker for PwnedPasswordsApi {
     }
 }
 
+#[allow(dead_code)]
 pub struct StubBreachChecker {
     pub results: Vec<(String, u32)>,
 }
 
 impl BreachChecker for StubBreachChecker {
-    fn check(&self, password: &str) -> Pin<Box<dyn Future<Output = Option<BreachResult>> + Send + '_>> {
+    fn check(
+        &self,
+        password: &str,
+    ) -> Pin<Box<dyn Future<Output = Option<BreachResult>> + Send + '_>> {
         let password = password.to_string();
         let results = self.results.clone();
         Box::pin(async move {

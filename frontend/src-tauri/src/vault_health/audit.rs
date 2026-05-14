@@ -104,7 +104,10 @@ pub fn check_reused_passwords(entries: &[Entry]) -> Vec<ReusedPassword> {
     reused_passwords
 }
 
-pub async fn check_breach_status(entries: &[Entry], checker: &dyn BreachChecker) -> Vec<BreachedCredential> {
+pub async fn check_breach_status(
+    entries: &[Entry],
+    checker: &dyn BreachChecker,
+) -> Vec<BreachedCredential> {
     let mut breached_credentials = Vec::new();
 
     for entry in entries {
@@ -147,7 +150,10 @@ pub fn calculate_vault_health_score(
     score.clamp(0.0, 100.0) as u8
 }
 
-pub async fn check_vault_health(entries: &[Entry], checker: &dyn BreachChecker) -> VaultHealthReport {
+pub async fn check_vault_health(
+    entries: &[Entry],
+    checker: &dyn BreachChecker,
+) -> VaultHealthReport {
     let weak_passwords = check_weak_passwords(entries);
     let reused_passwords = check_reused_passwords(entries);
     let breached_credentials = check_breach_status(entries, checker).await;
@@ -245,9 +251,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_check_vault_health() {
-        let checker = StubBreachChecker {
-            results: vec![],
-        };
+        let checker = StubBreachChecker { results: vec![] };
 
         let entries = vec![
             create_test_entry("1", "Test1", "user1", "password123"),
@@ -268,16 +272,14 @@ mod tests {
         let checker = StubBreachChecker {
             results: vec![("password123".to_string(), 42000)],
         };
-        let entries = vec![
-            Entry {
-                id: "1".into(),
-                title: "Test".into(),
-                username: "user".into(),
-                password: "password123".into(),
-                url: None,
-                icon_url: None,
-            },
-        ];
+        let entries = vec![Entry {
+            id: "1".into(),
+            title: "Test".into(),
+            username: "user".into(),
+            password: "password123".into(),
+            url: None,
+            icon_url: None,
+        }];
         let breached = check_breach_status(&entries, &checker).await;
         assert_eq!(breached.len(), 1);
         assert_eq!(breached[0].breach_count, 42000);
@@ -285,19 +287,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_stub_breach_checker_no_breach() {
-        let checker = StubBreachChecker {
-            results: vec![],
-        };
-        let entries = vec![
-            Entry {
-                id: "1".into(),
-                title: "Safe".into(),
-                username: "user".into(),
-                password: "Str0ng!P@ss".into(),
-                url: None,
-                icon_url: None,
-            },
-        ];
+        let checker = StubBreachChecker { results: vec![] };
+        let entries = vec![Entry {
+            id: "1".into(),
+            title: "Safe".into(),
+            username: "user".into(),
+            password: "Str0ng!P@ss".into(),
+            url: None,
+            icon_url: None,
+        }];
         let breached = check_breach_status(&entries, &checker).await;
         assert_eq!(breached.len(), 0);
     }

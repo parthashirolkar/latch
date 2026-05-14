@@ -25,8 +25,14 @@ impl AuthMethod {
         }
     }
 
+    #[allow(dead_code)]
     pub fn all_tags() -> &'static [&'static str] {
-        &["password-pbkdf2", "oauth-argon2id", "oauth-pbkdf2", "biometric-keychain"]
+        &[
+            "password-pbkdf2",
+            "oauth-argon2id",
+            "oauth-pbkdf2",
+            "biometric-keychain",
+        ]
     }
 }
 
@@ -36,7 +42,11 @@ mod tests {
 
     #[test]
     fn test_roundtrip_all_methods() {
-        for method in &[AuthMethod::Password, AuthMethod::OAuth, AuthMethod::Biometric] {
+        for method in &[
+            AuthMethod::Password,
+            AuthMethod::OAuth,
+            AuthMethod::Biometric,
+        ] {
             let tag = method.vault_tag();
             let parsed = AuthMethod::from_vault_tag(tag).unwrap();
             assert_eq!(*method, parsed);
