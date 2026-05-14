@@ -23,33 +23,33 @@ export default function BreachedCredentialsList({ onSelectEntry }: BreachedCrede
       badgeBgColor="#ff4d4d20"
       renderBadge={(count) => count}
       renderItem={(breached, _index) => (
-        <button className="settings-list-item danger">
-          <div className="settings-list-item-content">
+        <button className="flex items-center justify-between gap-4 px-4 py-3 bg-brutal-red border-2 border-brutal-yellow cursor-pointer transition-transform duration-100 shadow-[6px_6px_0px_var(--color-brutal-yellow)] hover:bg-[#FFB5B5] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_var(--color-brutal-yellow)] w-full text-left">
+          <div className="flex items-center gap-3 text-brutal-white font-extrabold min-w-0 flex-1">
             <AlertOctagon size={18} />
             <span>{breached.title}</span>
           </div>
-          <div className="settings-list-item-meta">
+          <div className="flex items-center gap-2 text-white/80 text-sm">
             <span>{breached.breach_count} breach{breached.breach_count !== 1 ? 'es' : ''}</span>
             <ArrowRight size={16} />
           </div>
         </button>
       )}
       renderExpandedContent={(breached, _index) => (
-        <div className="settings-expandable-content">
+        <div>
           {breached.username && (
-            <div className="settings-expandable-field">
-              <span className="settings-expandable-label">Username:</span>
-              <div className="settings-expandable-value-row">
-                <span className="settings-expandable-value" style={{ fontFamily: 'var(--font-mono)' }}>
+            <div className="mb-4">
+              <span className="block text-xs text-brutal-gray uppercase tracking-wider mb-2 font-semibold">Username:</span>
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-xl tracking-wider text-brutal-yellow bg-brutal-black px-4 py-3 border border-brutal-yellow break-all flex-1">
                   {breached.username}
                 </span>
                 <button
-                  className="settings-icon-btn"
                   onClick={(e) => {
                     e.stopPropagation()
                     navigator.clipboard.writeText(breached.username)
                   }}
                   title="Copy username"
+                  className="flex items-center justify-center w-11 h-11 bg-brutal-black border-2 border-brutal-yellow text-brutal-white cursor-pointer transition-transform duration-100 hover:bg-brutal-yellow hover:text-white shadow-[2px_2px_0px_var(--color-brutal-yellow)]"
                 >
                   <Copy size={14} />
                 </button>
@@ -58,8 +58,7 @@ export default function BreachedCredentialsList({ onSelectEntry }: BreachedCrede
           )}
 
           <button
-            className="settings-button settings-button-primary"
-            style={{ width: '100%', marginTop: '12px' }}
+            className="w-full px-5 py-2.5 bg-brutal-yellow text-brutal-black border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-brutal-white hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none mt-3"
             onClick={(e) => {
               e.stopPropagation()
               onSelectEntry(breached.entry_id)
@@ -72,8 +71,7 @@ export default function BreachedCredentialsList({ onSelectEntry }: BreachedCrede
             href="https://haveibeenpwned.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="settings-button settings-button-ghost"
-            style={{ width: '100%', marginTop: '8px' }}
+            className="w-full mt-2 px-5 py-2.5 bg-brutal-black text-brutal-white border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none flex items-center justify-center gap-2"
             onClick={(e) => e.stopPropagation()}
           >
             <ExternalLink size={16} />

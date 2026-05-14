@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { api } from '../api/client'
 import { Shield, AlertTriangle, AlertOctagon } from 'lucide-react'
 
 interface StrengthMeterProps {
@@ -74,11 +74,10 @@ export default function StrengthMeter({ password, showEntropy = false }: Strengt
     setIsLoading(true)
     const analyzePassword = async () => {
       try {
-        const result = await invoke('analyze_password_strength', { password })
-        const data = JSON.parse(result as string)
+        const report = await api.analyzePassword(password)
         setAnalysis({
-          score: data.score,
-          entropy: data.entropy
+          score: report.score,
+          entropy: report.entropy
         })
       } catch (error) {
         console.error('Error analyzing password:', error)
@@ -100,20 +99,28 @@ export default function StrengthMeter({ password, showEntropy = false }: Strengt
   const Icon = strengthInfo.icon
 
   return (
-    <div className="strength-meter" style={{ opacity: isLoading ? 0.6 : 1, transition: 'opacity 0.15s ease' }}>
-      <div className="strength-meter-info">
+    <div className="mt-2" style={{ opacity: isLoading ? 0.6 : 1, transition: 'opacity 0.15s ease' }}>
+      <div className="flex items-center gap-2 mt-2.5">
         <Icon size={14} style={{ color: strengthInfo.color }} />
-        <span className="strength-meter-label" style={{ color: strengthInfo.color }}>
+        <span className="text-sm font-medium text-white/80" style={{ color: strengthInfo.color }}>
           {strengthInfo.label}
         </span>
         {showEntropy && !isNaN(analysis.entropy) && (
-          <span className="strength-meter-entropy">
+          <span className="font-mono text-xs text-brutal-gray ml-2">
             {Math.round(analysis.entropy)}-bit
           </span>
         )}
       </div>
-      <div className="strength-meter-bar">
-        <div className={`strength-meter-fill ${strengthInfo.level}`} />
+      <div className="h-1 bg-[#111] rounded overflow-hidden relative mt-1">
+        <div
+          className={`h-full rounded transition-all duration-300 ${
+            strengthInfo.level === 'very-weak' ? 'bg-[#ff4d4d] w-[20%]' :
+            strengthInfo.level === 'weak' ? 'bg-[#ffa500] w-[40%]' :
+            strengthInfo.level === 'fair' ? 'bg-[#ffcc00] w-[60%]' :
+            strengthInfo.level === 'strong' ? 'bg-[#90ee90] w-[80%]' :
+            'bg-[#00ff9d] w-full'
+          }`}
+        />
       </div>
     </div>
   )

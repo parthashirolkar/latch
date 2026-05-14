@@ -80,7 +80,6 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   }, [])
 
   const handleOAuthError = useCallback((_errorMsg: string) => {
-    // Error is displayed by the OAuth component internally
   }, [])
 
   const handleShortcutEscape = useCallback(() => {
@@ -259,7 +258,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   }
 
   return (
-    <div className="command-palette">
+    <div className="w-full h-auto max-h-none bg-brutal-black border-none shadow-none flex flex-col overflow-visible">
       {renderMode()}
     </div>
   )

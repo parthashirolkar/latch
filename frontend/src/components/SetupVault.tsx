@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { Eye, EyeOff } from 'lucide-react'
+import { api } from '../api/client'
 
 interface SetupVaultProps {
   onSuccess: () => void
@@ -30,52 +30,37 @@ function SetupVault({ onSuccess }: SetupVaultProps) {
 
     setLoading(true)
     try {
-      const result = await invoke('init_vault', { password })
-      const response = JSON.parse(result as string)
-
-      if (response.status === 'success') {
-        onSuccess()
-      } else {
-        setError(response.message || 'Failed to initialize vault')
-      }
+      await api.provisionPassword(password)
+      onSuccess()
     } catch (err) {
-      setError(err as string)
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="setup-container">
-      <div className="setup-form">
-        <h2>Create Vault</h2>
-        <p>Set up your master password to secure your credentials</p>
+    <div className="p-6 flex flex-col bg-brutal-black border-2 border-brutal-yellow shadow-[4px_4px_0px_var(--color-brutal-yellow)] m-4">
+      <div className="flex flex-col gap-4">
+        <h2 className="text-[28px] leading-[1.1] font-extrabold font-mono text-brutal-white">Create Vault</h2>
+        <p className="text-sm text-white/80 font-mono">Set up your master password to secure your credentials</p>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="password">Master Password</label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="password" className="text-xs text-brutal-gray font-mono uppercase tracking-wider">Master Password</label>
+            <div className="relative flex items-center">
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="form-input"
                 autoFocus
-                style={{ paddingRight: '40px', flex: 1 }}
+                className="w-full bg-brutal-black text-brutal-white border-2 border-brutal-yellow font-mono px-3 py-2 outline-none focus:border-brutal-blue [padding-right:40px]"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  color: '#888'
-                }}
+                className="absolute right-2 bg-transparent border-none cursor-pointer p-1 text-brutal-gray"
                 title={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -83,29 +68,20 @@ function SetupVault({ onSuccess }: SetupVaultProps) {
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="confirm-password">Confirm Password</label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="confirm-password" className="text-xs text-brutal-gray font-mono uppercase tracking-wider">Confirm Password</label>
+            <div className="relative flex items-center">
               <input
                 id="confirm-password"
                 type={showConfirmPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="form-input"
-                style={{ paddingRight: '40px', flex: 1 }}
+                className="w-full bg-brutal-black text-brutal-white border-2 border-brutal-yellow font-mono px-3 py-2 outline-none focus:border-brutal-blue [padding-right:40px]"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  color: '#888'
-                }}
+                className="absolute right-2 bg-transparent border-none cursor-pointer p-1 text-brutal-gray"
                 title={showConfirmPassword ? 'Hide password' : 'Show password'}
               >
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -113,9 +89,9 @@ function SetupVault({ onSuccess }: SetupVaultProps) {
             </div>
           </div>
 
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="p-3 bg-brutal-red text-brutal-white text-sm">{error}</div>}
 
-          <button type="submit" className="form-button" disabled={loading}>
+          <button type="submit" disabled={loading} className="bg-brutal-yellow text-brutal-black font-bold border-2 border-brutal-black px-4 py-2 cursor-pointer hover:bg-brutal-white shadow-[3px_3px_0px_var(--color-brutal-black)] disabled:opacity-50 disabled:cursor-not-allowed font-mono uppercase tracking-wider">
             {loading ? 'Creating...' : 'Create Vault'}
           </button>
         </form>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, ReactNode } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { RotateCw } from 'lucide-react'
+import { api } from '../../api/client'
 
 interface HealthListProps<T> {
   title: string
@@ -32,9 +32,8 @@ export function HealthList<T>({
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true)
-      const result = await invoke('check_vault_health')
-      const parsed = JSON.parse(result as string)
-      setData((parsed.report?.[fetchKey] as T[]) || [])
+      const report = await api.checkVaultHealth()
+      setData((report[fetchKey] as T[]) || [])
     } catch (error) {
       console.error(`Error loading ${fetchKey}:`, error)
     } finally {
@@ -48,29 +47,29 @@ export function HealthList<T>({
 
   if (isLoading) {
     return (
-      <div className="settings-container">
-        <header className="settings-header">
-          <h2>{title}</h2>
+      <div className="px-5 py-5">
+        <header className="flex items-baseline justify-between gap-3 flex-wrap pb-2.5 border-b border-[#555] mb-2">
+          <h2 className="font-mono text-2xl font-semibold tracking-wide text-brutal-yellow">{title}</h2>
         </header>
-        <div className="settings-loading">
-          <div className="settings-loading-spinner"></div>
-          <span style={{ marginLeft: '12px' }}>Loading...</span>
+        <div className="flex items-center justify-center py-10 px-4">
+          <div className="w-6 h-6 border-2 border-brutal-yellow border-t-transparent rounded-full animate-spin"></div>
+          <span className="ml-3 text-brutal-white font-mono">Loading...</span>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="settings-container">
-      <header className="settings-header">
-        <h2>{title}</h2>
-        <div className="settings-header-meta">
+    <div className="px-5 py-5">
+      <header className="flex items-baseline justify-between gap-3 flex-wrap pb-2.5 border-b border-[#555] mb-2">
+        <h2 className="font-mono text-2xl font-semibold tracking-wide text-brutal-yellow">{title}</h2>
+        <div className="flex items-center gap-2.5">
           <span
-            className="settings-current-badge"
+            className="text-[11px] font-medium uppercase tracking-wider px-2 py-1"
             style={{
               backgroundColor: badgeBgColor,
               color: badgeColor,
-              borderColor: badgeColor,
+              border: `1px solid ${badgeColor}`
             }}
           >
             {renderBadge(data.length)}
@@ -78,25 +77,27 @@ export function HealthList<T>({
         </div>
       </header>
 
-      <div className="settings-body">
-        <p className="settings-instruction">{instruction}</p>
+      <div className="flex flex-col gap-2">
+        <p className="text-[13px] text-white/80 leading-relaxed">{instruction}</p>
 
         {data.length === 0 ? (
-          <div className="settings-list-item success">
-            <div className="settings-list-item-content">
+          <div className="flex items-center justify-between gap-4 px-4 py-3 bg-[#0F331F] border-2 border-brutal-yellow shadow-[6px_6px_0px_var(--color-brutal-yellow)] cursor-default">
+            <div className="flex items-center gap-3 text-[#4DFF94] font-extrabold min-w-0 flex-1">
               <span>{emptyMessage}</span>
             </div>
           </div>
         ) : (
-          <div className="settings-list">
+          <div className="flex flex-col gap-2 my-3">
             {data.map((item, index) => (
-              <div key={index} className="settings-expandable-item">
+              <div key={index} className="flex flex-col">
                 <div onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}>
                   {renderItem(item, index)}
                 </div>
                 {expandedIndex === index && (
-                  <div style={{ marginTop: '12px' }} onClick={(e) => e.stopPropagation()}>
-                    {renderExpandedContent(item, index)}
+                  <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="p-5 bg-brutal-black border-2 border-brutal-yellow border-t-0 shadow-[inset_0_2px_0_rgba(0,0,0,0.1)]">
+                      {renderExpandedContent(item, index)}
+                    </div>
                   </div>
                 )}
               </div>
@@ -104,8 +105,8 @@ export function HealthList<T>({
           </div>
         )}
 
-        <div className="settings-actions">
-          <button className="settings-button settings-button-ghost" onClick={loadData}>
+        <div className="flex gap-2 justify-end pt-1">
+          <button onClick={loadData} className="px-5 py-2.5 bg-brutal-black text-brutal-white border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none flex items-center gap-2">
             <RotateCw size={16} />
             Refresh
           </button>

@@ -138,14 +138,14 @@ function SearchMode({ onModeChange, onLock, searchTrigger }: SearchModeProps) {
         />
       )}
 
-      <div className="palette-footer">
+      <div className="px-3 py-2 border-t-2 border-brutal-yellow bg-brutal-black flex items-center justify-evenly w-full">
         {searchResults.length > 0 ? (
-          <span className="palette-footer-hint">
-            <kbd>↑↓</kbd> Navigate <kbd>Enter</kbd> Select <kbd>Shift+Backspace</kbd> Delete <kbd>Esc</kbd> Clear <kbd>,</kbd> Settings <kbd>Ctrl+H</kbd> Health
+          <span className="text-[11px] text-white/80 inline-flex items-center gap-[5px] whitespace-nowrap">
+            <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">↑↓</kbd> Navigate <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">Enter</kbd> Select <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">Shift+Backspace</kbd> Delete <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">Esc</kbd> Clear <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">,</kbd> Settings <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">Ctrl+H</kbd> Health
           </span>
         ) : (
-          <span className="palette-footer-hint">
-            <kbd>Enter</kbd> Add New Password <kbd>Esc</kbd> Hide <kbd>Ctrl+G</kbd> Generate <kbd>Ctrl+H</kbd> Health <kbd>,</kbd> Settings
+          <span className="text-[11px] text-white/80 inline-flex items-center gap-[5px] whitespace-nowrap">
+            <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">Enter</kbd> Add New Password <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">Esc</kbd> Hide <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">Ctrl+G</kbd> Generate <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">Ctrl+H</kbd> Health <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">,</kbd> Settings
           </span>
         )}
       </div>
