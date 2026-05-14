@@ -1,3 +1,4 @@
+mod crypto;
 mod oauth;
 mod password;
 mod password_generator;
