@@ -67,3 +67,22 @@ export const VaultHealthReportSchema = z.object({
   average_entropy: z.number(),
 })
 export type VaultHealthReport = z.infer<typeof VaultHealthReportSchema>
+
+export type PaletteMode =
+  | 'search'
+  | 'actions'
+  | 'add-entry'
+  | 'edit-entry'
+  | 'delete-confirm'
+  | 'auth-selector'
+  | 'oauth-setup'
+  | 'oauth-login'
+  | 'biometric-setup'
+  | 'biometric-login'
+  | 'migrate'
+  | 'settings'
+  | 'password-generator'
+  | 'vault-health'
+  | 'health-weak'
+  | 'health-reused'
+  | 'health-breached'
