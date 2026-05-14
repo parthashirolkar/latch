@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useClipboardGuard } from '../../hooks/useClipboardGuard'
 import { useKeyboardNav } from '../../hooks/useKeyboardNav'
 import PaletteList from '../PaletteList'
@@ -14,22 +14,20 @@ interface EntryActionsProps {
 
 function EntryActions({ entry, onModeChange, onLock }: EntryActionsProps) {
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [error, setError] = useState('')
   const { copy } = useClipboardGuard()
-
-  useEffect(() => {
-    setSelectedIndex(0)
-  }, [])
 
   const handleCopyPassword = async () => {
     try {
       const value = await api.copyField(entry.id, 'password')
       await copy(value)
       onModeChange('search')
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error)
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
       if (errMsg.includes('locked')) {
         onModeChange('oauth-login')
       }
+      setError(errMsg)
     }
   }
 
@@ -100,6 +98,7 @@ function EntryActions({ entry, onModeChange, onLock }: EntryActionsProps) {
           actions[index].handler()
         }}
       />
+      {error && <div className="palette-error">{error}</div>}
       <div className="palette-footer">
         <span className="palette-footer-hint">
           <kbd>↑↓</kbd> Navigate <kbd>Enter</kbd> Execute <kbd>Esc</kbd> Back

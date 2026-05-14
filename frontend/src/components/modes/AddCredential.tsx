@@ -98,7 +98,7 @@ function AddCredential({ editEntry, prefillTitle, generatedPassword, onModeChang
       onModeChange('search')
     } catch (err) {
       console.error(`Error ${isEditing ? 'updating' : 'adding'} entry:`, err)
-      setError(err as string)
+      setError(err instanceof Error ? err.message : String(err))
     }
   }, [formData, editEntry, isEditing, onModeChange, onCredentialsChanged])
 

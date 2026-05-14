@@ -68,7 +68,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     if (newMode !== 'add-entry' && newMode !== 'edit-entry') {
       setGeneratedPassword('')
     }
-    if (newMode === 'search' || newMode === 'add-entry') {
+    if (newMode === 'search' || newMode === 'add-entry' || newMode === 'edit-entry') {
       setEntryForGenerator(null)
     }
     setMode(newMode)
@@ -83,16 +83,18 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
     // Error is displayed by the OAuth component internally
   }, [])
 
+  const handleShortcutEscape = useCallback(() => {
+    if (mode === 'settings') {
+      setMode('search')
+    } else if (mode === 'vault-health') {
+      setMode('search')
+    } else if (mode === 'health-weak' || mode === 'health-reused' || mode === 'health-breached') {
+      setMode('vault-health')
+    }
+  }, [mode])
+
   useKeyboardShortcuts({
-    onEscape: useCallback(() => {
-      if (mode === 'settings') {
-        setMode('search')
-      } else if (mode === 'vault-health') {
-        setMode('search')
-      } else if (mode === 'health-weak' || mode === 'health-reused' || mode === 'health-breached') {
-        setMode('vault-health')
-      }
-    }, [mode]),
+    onEscape: handleShortcutEscape,
     enabled: mode === 'settings' || mode === 'vault-health' ||
              mode === 'health-weak' || mode === 'health-reused' || mode === 'health-breached',
   })
@@ -103,7 +105,6 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
         return (
           <SearchMode
             onModeChange={handleModeChange}
-            onCredentialsChanged={handleCredentialsChanged}
             onLock={handleLock}
             searchTrigger={credentialsChanged}
           />

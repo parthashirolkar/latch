@@ -9,7 +9,6 @@ import { type PaletteMode, type CredentialPreview } from '../../api/types'
 
 interface SearchModeProps {
   onModeChange: (mode: PaletteMode, entry?: CredentialPreview, prefillTitle?: string) => void
-  onCredentialsChanged: () => void
   onLock: () => void
   searchTrigger: number
 }
