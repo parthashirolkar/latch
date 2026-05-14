@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Chrome, Fingerprint } from 'lucide-react'
+import { Globe, Fingerprint } from 'lucide-react'
 import { checkStatus } from '@choochmeque/tauri-plugin-biometry-api'
 
 interface AuthSelectorProps {
@@ -57,7 +57,7 @@ export default function AuthSelector({
           onClick={onOAuthSelect}
           className="oauth-button auth-selector-button"
         >
-          <Chrome size={24} />
+          <Globe size={24} />
           <span>Sign in with Google</span>
           <span className="auth-selector-subtitle">Use your Google account</span>
         </button>

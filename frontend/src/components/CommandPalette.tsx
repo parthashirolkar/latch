@@ -117,7 +117,7 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   const [entryToEdit, setEntryToEdit] = useState<Entry | null>(null)
   const [entryForGenerator, setEntryForGenerator] = useState<Entry | null>(null)
   const paletteRef = useRef<HTMLDivElement>(null)
-  const clearClipboardTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearClipboardTimeoutRef = useRef<number | null>(null)
 
   const debouncedInputValue = useDebounce(inputValue, 300)
 

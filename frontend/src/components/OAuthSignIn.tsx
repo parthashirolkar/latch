@@ -1,4 +1,4 @@
-import { Chrome, Loader2 } from 'lucide-react'
+import { Globe, Loader2 } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { useState } from 'react'
 import { signIn } from '@choochmeque/tauri-plugin-google-auth-api'
@@ -72,7 +72,7 @@ export default function OAuthSignIn({ mode, onSuccess, onError }: OAuthSignInPro
           </>
         ) : (
           <>
-            <Chrome size={20} />
+            <Globe size={20} />
             <span>Sign in with Google</span>
           </>
         )}

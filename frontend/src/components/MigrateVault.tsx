@@ -1,4 +1,4 @@
-import { Lock, Chrome, Loader2, ArrowRight } from 'lucide-react'
+import { Lock, Globe, Loader2, ArrowRight } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { useState } from 'react'
 import { signIn } from '@choochmeque/tauri-plugin-google-auth-api'
@@ -106,7 +106,7 @@ export default function MigrateVault({ onSuccess, onError }: MigrateVaultProps) 
           disabled={isProcessing}
           className="oauth-button"
         >
-          <Chrome size={20} />
+          <Globe size={20} />
           <span>Sign in with Google</span>
         </button>
 
