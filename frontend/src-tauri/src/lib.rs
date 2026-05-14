@@ -776,7 +776,8 @@ async fn check_vault_health(state: State<'_, VaultState>) -> Result<String, Stri
         vault.get_entries().clone()
     };
 
-    let report = vault_health::check_vault_health(&entries).await;
+    let checker = vault_health::breach_checker::PwnedPasswordsApi;
+    let report = vault_health::audit::check_vault_health(&entries, &checker).await;
 
     Ok(json!({
         "status": "success",

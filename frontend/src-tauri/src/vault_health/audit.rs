@@ -1,7 +1,8 @@
 use crate::vault::Entry;
 use serde::{Deserialize, Serialize};
-use sha1::{Digest, Sha1};
 use std::collections::HashMap;
+
+use super::breach_checker::BreachChecker;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WeakPassword {
@@ -44,12 +45,6 @@ pub struct VaultHealthReport {
     pub total_entries: usize,
     pub strong_passwords: usize,
     pub average_entropy: f64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BreachResult {
-    pub hash_suffix: String,
-    pub count: u32,
 }
 
 pub fn check_weak_passwords(entries: &[Entry]) -> Vec<WeakPassword> {
@@ -109,11 +104,11 @@ pub fn check_reused_passwords(entries: &[Entry]) -> Vec<ReusedPassword> {
     reused_passwords
 }
 
-pub async fn check_breach_status(entries: &[Entry]) -> Vec<BreachedCredential> {
+pub async fn check_breach_status(entries: &[Entry], checker: &dyn BreachChecker) -> Vec<BreachedCredential> {
     let mut breached_credentials = Vec::new();
 
     for entry in entries {
-        if let Some(breach_data) = check_single_breach(&entry.password).await {
+        if let Some(breach_data) = checker.check(&entry.password).await {
             if breach_data.count > 0 {
                 breached_credentials.push(BreachedCredential {
                     entry_id: entry.id.clone(),
@@ -127,42 +122,6 @@ pub async fn check_breach_status(entries: &[Entry]) -> Vec<BreachedCredential> {
 
     breached_credentials.sort_by(|a, b| b.breach_count.cmp(&a.breach_count));
     breached_credentials
-}
-
-async fn check_single_breach(password: &str) -> Option<BreachResult> {
-    let hash = Sha1::digest(password.as_bytes());
-    let hash_hex = format!("{:x}", hash);
-    let hash_upper = hash_hex.to_uppercase();
-
-    let prefix = &hash_upper[..5];
-    let suffix = &hash_upper[5..];
-
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .ok()?;
-
-    let response = client
-        .get(format!("https://api.pwnedpasswords.com/range/{}", prefix))
-        .header("User-Agent", "Latch-Password-Manager")
-        .send()
-        .await
-        .ok()?;
-
-    let body = response.text().await.ok()?;
-
-    for line in body.lines() {
-        let parts: Vec<&str> = line.split(':').collect();
-        if parts.len() == 2 && parts[0].eq_ignore_ascii_case(suffix) {
-            let count: u32 = parts[1].trim().parse().unwrap_or(0);
-            return Some(BreachResult {
-                hash_suffix: suffix.to_string(),
-                count,
-            });
-        }
-    }
-
-    None
 }
 
 pub fn calculate_vault_health_score(
@@ -188,10 +147,10 @@ pub fn calculate_vault_health_score(
     score.clamp(0.0, 100.0) as u8
 }
 
-pub async fn check_vault_health(entries: &[Entry]) -> VaultHealthReport {
+pub async fn check_vault_health(entries: &[Entry], checker: &dyn BreachChecker) -> VaultHealthReport {
     let weak_passwords = check_weak_passwords(entries);
     let reused_passwords = check_reused_passwords(entries);
-    let breached_credentials = check_breach_status(entries).await;
+    let breached_credentials = check_breach_status(entries, checker).await;
 
     let reused_entries_count: usize = reused_passwords.iter().map(|rp| rp.entries.len() - 1).sum();
 
@@ -229,6 +188,7 @@ pub async fn check_vault_health(entries: &[Entry]) -> VaultHealthReport {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vault_health::breach_checker::StubBreachChecker;
 
     fn create_test_entry(id: &str, title: &str, username: &str, password: &str) -> Entry {
         Entry {
@@ -285,13 +245,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_check_vault_health() {
+        let checker = StubBreachChecker {
+            results: vec![],
+        };
+
         let entries = vec![
             create_test_entry("1", "Test1", "user1", "password123"),
             create_test_entry("2", "Test2", "user2", "password123"),
             create_test_entry("3", "Test3", "user3", "Tr0ub4dor&3!p@ss"),
         ];
 
-        let report = check_vault_health(&entries).await;
+        let report = check_vault_health(&entries, &checker).await;
 
         assert_eq!(report.total_entries, 3);
         assert!(!report.weak_passwords.is_empty());
@@ -300,10 +264,41 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "Requires network access"]
-    async fn test_check_single_breach_known_password() {
-        let result = check_single_breach("password").await;
-        assert!(result.is_some());
-        assert!(result.unwrap().count > 0);
+    async fn test_stub_breach_checker_detects_breach() {
+        let checker = StubBreachChecker {
+            results: vec![("password123".to_string(), 42000)],
+        };
+        let entries = vec![
+            Entry {
+                id: "1".into(),
+                title: "Test".into(),
+                username: "user".into(),
+                password: "password123".into(),
+                url: None,
+                icon_url: None,
+            },
+        ];
+        let breached = check_breach_status(&entries, &checker).await;
+        assert_eq!(breached.len(), 1);
+        assert_eq!(breached[0].breach_count, 42000);
+    }
+
+    #[tokio::test]
+    async fn test_stub_breach_checker_no_breach() {
+        let checker = StubBreachChecker {
+            results: vec![],
+        };
+        let entries = vec![
+            Entry {
+                id: "1".into(),
+                title: "Safe".into(),
+                username: "user".into(),
+                password: "Str0ng!P@ss".into(),
+                url: None,
+                icon_url: None,
+            },
+        ];
+        let breached = check_breach_status(&entries, &checker).await;
+        assert_eq!(breached.len(), 0);
     }
 }
