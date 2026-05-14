@@ -22,7 +22,7 @@ fn get_app_secret() -> String {
     secret
 }
 
-pub fn derive_key_from_oauth(user_id: &str) -> Result<[u8; 32], String> {
+pub fn derive_key(user_id: &str) -> Result<[u8; 32], String> {
     let app_secret = get_app_secret();
 
     // Use Argon2id to derive a 32-byte key
@@ -72,7 +72,7 @@ pub fn decode_id_token(id_token: &str) -> Result<GoogleIdToken, String> {
     Ok(token_data.claims)
 }
 
-pub fn get_user_id_from_token(id_token: &str) -> Result<String, String> {
+pub fn extract_user_id(id_token: &str) -> Result<String, String> {
     let claims = decode_id_token(id_token)?;
     Ok(claims.sub)
 }
@@ -110,76 +110,76 @@ mod tests {
     }
 
     #[test]
-    fn test_get_user_id_from_token_valid() {
+    fn test_extract_user_id_valid() {
         let user_id = "test-user-id-123";
         let payload = json!({ "sub": user_id });
         let encoded = general_purpose::URL_SAFE_NO_PAD.encode(payload.to_string());
         let token = format!("header.{}.signature", encoded);
 
-        let result = get_user_id_from_token(&token);
+        let result = extract_user_id(&token);
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_get_user_id_from_token_missing_sub() {
+    fn test_extract_user_id_missing_sub() {
         let payload = json!({ "name": "John Doe" });
         let encoded = general_purpose::URL_SAFE_NO_PAD.encode(payload.to_string());
         let token = format!("header.{}.signature", encoded);
 
-        let result = get_user_id_from_token(&token);
+        let result = extract_user_id(&token);
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_get_user_id_from_token_invalid_json() {
+    fn test_extract_user_id_invalid_json() {
         let encoded = general_purpose::URL_SAFE_NO_PAD.encode("invalid json");
         let token = format!("header.{}.signature", encoded);
 
-        let result = get_user_id_from_token(&token);
+        let result = extract_user_id(&token);
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_get_user_id_from_token_empty_string() {
-        let result = get_user_id_from_token("");
+    fn test_extract_user_id_empty_string() {
+        let result = extract_user_id("");
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_derive_key_from_oauth_returns_valid_key() {
+    fn test_derive_key_returns_valid_key() {
         let user_id = "test-user-id-123";
-        let key = derive_key_from_oauth(user_id).unwrap();
+        let key = derive_key(user_id).unwrap();
         assert_eq!(key.len(), 32);
     }
 
     #[test]
-    fn test_derive_key_from_oauth_different_users() {
+    fn test_derive_key_different_users() {
         let user_id_1 = "user-1";
         let user_id_2 = "user-2";
 
-        let key1 = derive_key_from_oauth(user_id_1).unwrap();
-        let key2 = derive_key_from_oauth(user_id_2).unwrap();
+        let key1 = derive_key(user_id_1).unwrap();
+        let key2 = derive_key(user_id_2).unwrap();
 
         assert_ne!(key1, key2);
     }
 
     #[test]
-    fn test_derive_key_from_oauth_empty_user_id() {
-        let key = derive_key_from_oauth("").unwrap();
+    fn test_derive_key_empty_user_id() {
+        let key = derive_key("").unwrap();
         assert_eq!(key.len(), 32);
     }
 
     #[test]
-    fn test_derive_key_from_oauth_long_user_id() {
+    fn test_derive_key_long_user_id() {
         let long_user_id = "a".repeat(1000);
-        let key = derive_key_from_oauth(&long_user_id).unwrap();
+        let key = derive_key(&long_user_id).unwrap();
         assert_eq!(key.len(), 32);
     }
 
     #[test]
-    fn test_derive_key_from_oauth_unicode() {
+    fn test_derive_key_unicode() {
         let unicode_user_id = "用户-123-пользователь";
-        let key = derive_key_from_oauth(unicode_user_id).unwrap();
+        let key = derive_key(unicode_user_id).unwrap();
         assert_eq!(key.len(), 32);
     }
 }

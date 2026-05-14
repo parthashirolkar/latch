@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf, time::SystemTime};
 use zeroize::Zeroize;
 
-use crate::oauth::derive_key_from_oauth;
+use crate::auth::oauth::derive_key;
 
 pub const SESSION_TIMEOUT_SECS: u64 = 30 * 60;
 
@@ -291,7 +291,7 @@ impl Vault {
             return Err("Vault already exists".to_string());
         }
 
-        let key = derive_key_from_oauth(user_id)?;
+        let key = derive_key(user_id)?;
 
         let vault_data = VaultData {
             entries: Vec::new(),
@@ -340,7 +340,7 @@ impl Vault {
 
         // Derive key and attempt decryption without early user_id validation
         // This prevents timing attacks that could enumerate valid user IDs
-        let key = derive_key_from_oauth(user_id)?;
+        let key = derive_key(user_id)?;
 
         let decrypted = Self::decrypt_data(&key, &vault.data)?;
 

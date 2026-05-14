@@ -1,79 +1,20 @@
+mod auth;
 mod crypto;
-mod oauth;
-mod password;
 mod password_generator;
 mod vault;
 mod vault_health;
 
-use oauth::get_user_id_from_token;
+use auth::lockout::AuthAttemptState;
+use auth::oauth::extract_user_id;
 use serde_json::json;
 use std::fs;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::SystemTime;
 use tauri::menu::{MenuBuilder, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_global_shortcut::ShortcutState;
 use vault::{Vault, SESSION_TIMEOUT_SECS};
-
-const MAX_FAILED_ATTEMPTS: u32 = 10;
-const BASE_LOCKOUT_DURATION: Duration = Duration::from_secs(5);
-const MAX_LOCKOUT_DURATION: Duration = Duration::from_secs(300);
-
-#[derive(Clone)]
-struct AuthAttemptState {
-    failed_attempts: u32,
-    last_failed_time: Option<Instant>,
-    lockout_until: Option<Instant>,
-}
-
-impl AuthAttemptState {
-    fn new() -> Self {
-        Self {
-            failed_attempts: 0,
-            last_failed_time: None,
-            lockout_until: None,
-        }
-    }
-
-    fn is_locked_out(&self) -> bool {
-        if let Some(lockout) = self.lockout_until {
-            Instant::now() < lockout
-        } else {
-            false
-        }
-    }
-
-    fn record_failure(&mut self) -> Result<(), String> {
-        self.failed_attempts += 1;
-        self.last_failed_time = Some(Instant::now());
-
-        if self.failed_attempts >= MAX_FAILED_ATTEMPTS {
-            self.lockout_until = Some(Instant::now() + MAX_LOCKOUT_DURATION);
-            return Err(format!(
-                "Too many failed attempts. Account locked for {} minutes.",
-                MAX_LOCKOUT_DURATION.as_secs() / 60
-            ));
-        }
-
-        let lockout_duration =
-            BASE_LOCKOUT_DURATION.saturating_mul(2_u32.pow(self.failed_attempts.saturating_sub(1)));
-        let lockout_duration = std::cmp::min(lockout_duration, MAX_LOCKOUT_DURATION);
-
-        self.lockout_until = Some(Instant::now() + lockout_duration);
-
-        Err(format!(
-            "Too many failed attempts. Please try again in {} seconds.",
-            lockout_duration.as_secs()
-        ))
-    }
-
-    fn reset(&mut self) {
-        self.failed_attempts = 0;
-        self.last_failed_time = None;
-        self.lockout_until = None;
-    }
-}
 
 struct AuthState(Mutex<AuthAttemptState>);
 
@@ -424,7 +365,7 @@ async fn init_vault_oauth(
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
     let user_id =
-        get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
+        auth::oauth::extract_user_id(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
 
     let vault = &mut state
         .0
@@ -451,7 +392,7 @@ async fn unlock_vault_oauth(
         return Err("Too many failed attempts. Please try again later.".to_string());
     }
 
-    let user_id = get_user_id_from_token(&id_token).map_err(|e| {
+    let user_id = auth::oauth::extract_user_id(&id_token).map_err(|e| {
         auth.record_failure().ok();
         format!("Invalid ID token: {}", e)
     })?;
@@ -557,8 +498,8 @@ async fn unlock_vault_with_key(
 
 #[tauri::command]
 async fn init_vault(password: String, state: State<'_, VaultState>) -> Result<String, String> {
-    let salt = password::generate_salt();
-    let key = password::derive_key_from_password(&password, &salt);
+    let salt = auth::password::generate_salt();
+    let key = auth::password::derive_key(&password, &salt);
     let salt_hex = hex::encode(salt);
 
     let vault = &mut state
@@ -618,7 +559,7 @@ async fn unlock_vault(
     let mut salt = [0u8; 32];
     salt.copy_from_slice(&salt_bytes);
 
-    let key = password::derive_key_from_password(&password, &salt);
+    let key = auth::password::derive_key(&password, &salt);
 
     match vault.unlock_with_key(&key) {
         Ok(_) => {
@@ -647,7 +588,7 @@ async fn migrate_to_oauth(
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
     let user_id =
-        get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
+        auth::oauth::extract_user_id(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
 
     let vault = &mut state
         .0
@@ -681,7 +622,7 @@ async fn migrate_to_oauth(
     let mut salt = [0u8; 32];
     salt.copy_from_slice(&salt_bytes);
 
-    let password_key = password::derive_key_from_password(&password, &salt);
+    let password_key = auth::password::derive_key(&password, &salt);
 
     let encrypted_data: vault::EncryptedData =
         serde_json::from_str(&vault_data["data"].to_string())
@@ -689,7 +630,7 @@ async fn migrate_to_oauth(
 
     let decrypted = vault::Vault::decrypt_data(&password_key, &encrypted_data)?;
 
-    let oauth_key = oauth::derive_key_from_oauth(&user_id)?;
+    let oauth_key = auth::oauth::derive_key(&user_id)?;
 
     let new_encrypted_data = vault::Vault::encrypt_data(&oauth_key, &decrypted)?;
 
@@ -764,8 +705,8 @@ async fn reencrypt_vault_to_oauth(
     state: State<'_, VaultState>,
 ) -> Result<String, String> {
     let user_id =
-        get_user_id_from_token(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
-    let key = oauth::derive_key_from_oauth(&user_id)?;
+        auth::oauth::extract_user_id(&id_token).map_err(|e| format!("Invalid ID token: {}", e))?;
+    let key = auth::oauth::derive_key(&user_id)?;
 
     let vault = &mut state
         .0
