@@ -1,12 +1,11 @@
 use super::{storage::VaultStorage, workspace::Workspace, Entry, VaultData};
 use crate::crypto::aead;
 
-pub fn add(workspace: &mut Workspace, entry: Entry) -> Result<(), String> {
-    if !workspace.is_unlocked() {
-        return Err("Vault is locked".to_string());
-    }
+pub fn add(workspace: &mut Workspace, storage: &VaultStorage, entry: Entry) -> Result<(), String> {
+    workspace.check_session()?;
+    workspace.refresh();
     workspace.credentials.push(entry);
-    Ok(())
+    persist(workspace, storage)
 }
 
 pub fn get_full(workspace: &Workspace, id: &str) -> Result<Entry, String> {
@@ -21,17 +20,20 @@ pub fn get_full(workspace: &Workspace, id: &str) -> Result<Entry, String> {
         .ok_or_else(|| format!("Credential '{}' not found", id))
 }
 
-pub fn update(workspace: &mut Workspace, entry: Entry) -> Result<(), String> {
-    if !workspace.is_unlocked() {
-        return Err("Vault is locked".to_string());
-    }
+pub fn update(
+    workspace: &mut Workspace,
+    storage: &VaultStorage,
+    entry: Entry,
+) -> Result<(), String> {
+    workspace.check_session()?;
+    workspace.refresh();
     let idx = workspace
         .credentials
         .iter()
         .position(|e| e.id == entry.id)
         .ok_or_else(|| format!("Credential '{}' not found", entry.id))?;
     workspace.credentials[idx] = entry;
-    Ok(())
+    persist(workspace, storage)
 }
 
 pub fn delete(workspace: &mut Workspace, storage: &VaultStorage, id: &str) -> Result<(), String> {

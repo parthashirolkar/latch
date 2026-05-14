@@ -67,10 +67,7 @@ bun run typecheck
 4. **Session management** - Vault auto-locks after 30 minutes
 5. **No password recovery** - Forgotten master password = lost data (by design)
 6. **Cross-platform** - Vault file format identical across Windows/macOS/Linux
-
-## Tool Pruning
-- **ONLY** remove tool context after completing logical sections of the task you've been given and only irrelevant tool calls should be discarded.
-- NOTHING MORE, NOTHING LESS.
+7. **No-build policy** - NEVER RUN `cargo build` locally or `bun run build` ever.
 
 ### Command Palette Pattern
 The app uses a Raycast-style single-window command palette interface with mode-based navigation

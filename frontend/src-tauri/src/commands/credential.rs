@@ -85,7 +85,7 @@ pub async fn add_entry(
         icon_url,
     };
 
-    state.lock(|_, workspace| crate::vault::entries::add(workspace, entry))?;
+    state.lock(|storage, workspace| crate::vault::entries::add(workspace, storage, entry))?;
 
     Ok(json!({"status": "success", "id": id}).to_string())
 }
@@ -121,7 +121,7 @@ pub async fn update_entry(
         icon_url,
     };
 
-    state.lock(|_, workspace| crate::vault::entries::update(workspace, entry))?;
+    state.lock(|storage, workspace| crate::vault::entries::update(workspace, storage, entry))?;
 
     Ok(json!({"status": "success"}).to_string())
 }

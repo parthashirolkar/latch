@@ -3,6 +3,16 @@ use crate::AuthState;
 use serde_json::json;
 use tauri::{AppHandle, State};
 
+fn decode_salt_hex(salt_hex: &str) -> Result<[u8; 32], String> {
+    let salt_bytes = hex::decode(salt_hex).map_err(|e| format!("Invalid salt: {}", e))?;
+    if salt_bytes.len() != 32 {
+        return Err("Salt must be 32 bytes".to_string());
+    }
+    let mut salt = [0u8; 32];
+    salt.copy_from_slice(&salt_bytes);
+    Ok(salt)
+}
+
 #[tauri::command]
 pub async fn init_vault_oauth(
     id_token: String,
@@ -185,14 +195,8 @@ pub async fn unlock_vault(
             return Err("Failed to unlock vault".to_string());
         }
 
-        let salt_hex = vault_file.salt;
-        let salt_bytes =
-            hex::decode(salt_hex).map_err(|e| format!("Failed to unlock vault: {}", e))?;
-        if salt_bytes.len() != 32 {
-            return Err("Failed to unlock vault".to_string());
-        }
-        let mut salt = [0u8; 32];
-        salt.copy_from_slice(&salt_bytes);
+        let salt =
+            decode_salt_hex(&vault_file.salt).map_err(|_| "Failed to unlock vault".to_string())?;
 
         let key = crate::auth::password::derive_key(&password, &salt);
 
@@ -307,14 +311,7 @@ pub async fn migrate_to_oauth(
             return Err("Migration is only supported from password-based vaults".to_string());
         }
 
-        let salt_hex = vault_file.salt;
-        let salt_bytes =
-            hex::decode(salt_hex).map_err(|e| format!("Invalid salt encoding: {}", e))?;
-        if salt_bytes.len() != 32 {
-            return Err("Invalid salt length".to_string());
-        }
-        let mut salt = [0u8; 32];
-        salt.copy_from_slice(&salt_bytes);
+        let salt = decode_salt_hex(&vault_file.salt)?;
 
         let password_key = crate::auth::password::derive_key(&password, &salt);
         crate::vault::access::access(storage, workspace, &password_key)?;
