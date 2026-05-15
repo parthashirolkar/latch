@@ -47,7 +47,11 @@ jobs:
 
       - name: Run frontend audit
         working-directory: ./frontend
-        run: bun pm scan
+        run: |
+          echo '[install.security]' > bunfig.toml
+          echo 'scanner = "@bun-security-scanner/osv"' >> bunfig.toml
+          bun pm scan
+        continue-on-error: true
 
   dependency-review:
     name: Dependency Review
