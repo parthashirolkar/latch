@@ -1,7 +1,7 @@
-import { Chrome, Loader2 } from 'lucide-react'
-import { invoke } from '@tauri-apps/api/core'
+import { Globe, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { signIn } from '@choochmeque/tauri-plugin-google-auth-api'
+import { api } from '../api/client'
 
 interface OAuthSignInProps {
   mode: 'setup' | 'login'
@@ -15,7 +15,6 @@ export default function OAuthSignIn({ mode, onSuccess, onError }: OAuthSignInPro
   const handleSignIn = async () => {
     setIsProcessing(true)
     try {
-      // Sign in with Google using the plugin
       const response = await signIn({
         clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
         clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET,
@@ -27,16 +26,12 @@ export default function OAuthSignIn({ mode, onSuccess, onError }: OAuthSignInPro
         throw new Error('No ID token received from Google')
       }
 
-      // Call appropriate backend command based on mode
-      const command = mode === 'setup' ? 'init_vault_oauth' : 'unlock_vault_oauth'
-      const result = await invoke(command, { idToken: response.idToken })
-      const parsed = JSON.parse(result as string)
-
-      if (parsed.status === 'success') {
-        onSuccess()
+      if (mode === 'setup') {
+        await api.provisionOAuth(response.idToken)
       } else {
-        onError?.(parsed.message || 'Authentication failed')
+        await api.accessOAuth(response.idToken)
       }
+      onSuccess()
     } catch (err) {
       onError?.(String(err))
     } finally {
@@ -45,17 +40,17 @@ export default function OAuthSignIn({ mode, onSuccess, onError }: OAuthSignInPro
   }
 
   return (
-    <div className="oauth-signin-container">
-      <div className="oauth-header">
+    <div className="px-5 py-6 flex flex-col items-center gap-4 bg-brutal-black">
+      <div className="text-center">
         {mode === 'setup' ? (
           <>
-            <h2>Welcome to Latch</h2>
-            <p>Sign in with Google to secure your password vault</p>
+            <h2 className="text-[28px] leading-[1.1] font-extrabold font-mono text-brutal-white uppercase tracking-wider mb-1.5">Welcome to Latch</h2>
+            <p className="text-sm text-white/80 font-mono">Sign in with Google to secure your password vault</p>
           </>
         ) : (
           <>
-            <h2>Unlock Latch</h2>
-            <p>Sign in with Google to access your passwords</p>
+            <h2 className="text-[28px] leading-[1.1] font-extrabold font-mono text-brutal-white uppercase tracking-wider mb-1.5">Unlock Latch</h2>
+            <p className="text-sm text-white/80 font-mono">Sign in with Google to access your passwords</p>
           </>
         )}
       </div>
@@ -63,23 +58,23 @@ export default function OAuthSignIn({ mode, onSuccess, onError }: OAuthSignInPro
       <button
         onClick={handleSignIn}
         disabled={isProcessing}
-        className="oauth-button"
+        className="flex items-center justify-center gap-2.5 px-6 py-3 bg-brutal-black text-brutal-white border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-all duration-100 w-full max-w-[300px] shadow-[4px_4px_0px_var(--color-brutal-yellow)] hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-45 disabled:cursor-not-allowed disabled:shadow-none"
       >
         {isProcessing ? (
           <>
-            <Loader2 size={20} className="spin" />
+            <Loader2 size={20} className="animate-spin" />
             <span>Authenticating...</span>
           </>
         ) : (
           <>
-            <Chrome size={20} />
+            <Globe size={20} />
             <span>Sign in with Google</span>
           </>
         )}
       </button>
 
-      <div className="oauth-footer">
-        <p>Your vault will be encrypted and stored locally</p>
+      <div className="text-center border-t border-[#555] w-full pt-3">
+        <p className="text-xs text-brutal-gray font-mono">Your vault will be encrypted and stored locally</p>
       </div>
     </div>
   )

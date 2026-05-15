@@ -1,50 +1,31 @@
 import { useState, useCallback } from 'react'
-import { invoke } from '@tauri-apps/api/core'
-import { z } from 'zod'
+import { api } from '../api/client'
+import { type CredentialPreview } from '../api/types'
 
-const EntryPreviewSchema = z.object({
-    id: z.string(),
-    title: z.string(),
-    username: z.string(),
-    icon_url: z.string().optional()
-})
+export type { CredentialPreview as Entry } from '../api/types'
 
-const EntriesSchema = z.array(EntryPreviewSchema)
+export function useSearch() {
+  const [searchResults, setSearchResults] = useState<CredentialPreview[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
-export interface Entry {
-    id: string
-    title: string
-    username: string
-    icon_url?: string
-}
+  const handleSearch = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([])
+      setIsLoading(false)
+      return
+    }
 
-export function useSearch(setModeToLogin: () => void) {
-    const [searchResults, setSearchResults] = useState<Entry[]>([])
-    const [isLoading, setIsLoading] = useState(false)
+    try {
+      setIsLoading(true)
+      const entries = await api.searchEntries(query)
+      setSearchResults(entries)
+    } catch (error) {
+      console.error('Search failed:', error)
+      setSearchResults([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
-    const handleSearch = useCallback(async (query: string) => {
-        if (query.length < 2) {
-            setSearchResults([])
-            setIsLoading(false)
-            return
-        }
-
-        try {
-            setIsLoading(true)
-            const result = await invoke('search_entries', { query })
-            const entries = EntriesSchema.parse(JSON.parse(result as string))
-            setSearchResults(entries)
-        } catch (error) {
-            const err = error as { message: string }
-            if (err?.message?.includes('locked')) {
-                setModeToLogin()
-            }
-            console.error('Search failed:', error)
-            setSearchResults([])
-        } finally {
-            setIsLoading(false)
-        }
-    }, [setModeToLogin])
-
-    return { searchResults, setSearchResults, isLoading, handleSearch }
+  return { searchResults, setSearchResults, isLoading, handleSearch }
 }

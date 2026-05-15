@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { Fingerprint, Loader2 } from 'lucide-react'
 import {
   generateAndStoreKey,
   retrieveKey
 } from '../utils/biometricKeys'
+import { api } from '../api/client'
 
 interface BiometricSignInProps {
   mode: 'setup' | 'login'
@@ -23,16 +23,8 @@ export default function BiometricSignIn({
     setIsProcessing(true)
     try {
       const keyHex = await generateAndStoreKey()
-      const result = await invoke('init_vault_with_key', {
-        keyHex,
-        kdf: 'biometric-keychain'
-      })
-      const parsed = JSON.parse(result as string)
-      if (parsed.status === 'success') {
-        onSuccess()
-      } else {
-        onError?.(parsed.message || 'Failed to set up vault')
-      }
+      await api.provisionWithKey(keyHex, 'biometric-keychain')
+      onSuccess()
     } catch (err) {
       onError?.(String(err))
     } finally {
@@ -44,13 +36,8 @@ export default function BiometricSignIn({
     setIsProcessing(true)
     try {
       const keyHex = await retrieveKey()
-      const result = await invoke('unlock_vault_with_key', { keyHex })
-      const parsed = JSON.parse(result as string)
-      if (parsed.status === 'success') {
-        onSuccess()
-      } else {
-        onError?.(parsed.message || 'Failed to unlock vault')
-      }
+      await api.accessKey(keyHex)
+      onSuccess()
     } catch (err) {
       onError?.(String(err))
     } finally {
@@ -61,16 +48,16 @@ export default function BiometricSignIn({
   const handleClick = mode === 'setup' ? handleSetup : handleLogin
 
   return (
-    <div className="oauth-signin-container">
-      <div className="oauth-header">
+    <div className="px-5 py-6 flex flex-col items-center gap-4 bg-brutal-black">
+      <div className="text-center">
         {mode === 'setup' ? (
           <>
-            <h2>Set up Biometric Authentication</h2>
-            <p>Use your fingerprint or face to protect your vault</p>
+            <h2 className="text-[28px] leading-[1.1] font-extrabold font-mono text-brutal-white uppercase tracking-wider mb-1.5">Set up Biometric Authentication</h2>
+            <p className="text-sm text-white/80 font-mono">Use your fingerprint or face to protect your vault</p>
           </>
         ) : (
           <>
-            <h2>Unlock Latch</h2>
+            <h2 className="text-[28px] leading-[1.1] font-extrabold font-mono text-brutal-white uppercase tracking-wider mb-1.5">Unlock Latch</h2>
           </>
         )}
       </div>
@@ -78,11 +65,11 @@ export default function BiometricSignIn({
       <button
         onClick={handleClick}
         disabled={isProcessing}
-        className="oauth-button biometric-button"
+        className="flex items-center justify-center gap-2.5 px-6 py-3 bg-brutal-yellow text-brutal-black border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-all duration-100 w-full max-w-[300px] shadow-[4px_4px_0px_var(--color-brutal-yellow)] hover:bg-brutal-white hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-45 disabled:cursor-not-allowed disabled:shadow-none"
       >
         {isProcessing ? (
           <>
-            <Loader2 size={20} className="spin" />
+            <Loader2 size={20} className="animate-spin" />
             <span>Authenticating...</span>
           </>
         ) : (
@@ -95,8 +82,8 @@ export default function BiometricSignIn({
         )}
       </button>
 
-      <div className="oauth-footer">
-        <p>Your vault is protected by biometric authentication</p>
+      <div className="text-center border-t border-[#555] w-full pt-3">
+        <p className="text-xs text-brutal-gray font-mono">Your vault is protected by biometric authentication</p>
       </div>
     </div>
   )

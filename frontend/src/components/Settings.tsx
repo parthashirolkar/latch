@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { check } from '@tauri-apps/plugin-updater'
 import { ask, message } from '@tauri-apps/plugin-dialog'
 import { relaunch } from '@tauri-apps/plugin-process'
@@ -12,6 +11,7 @@ import {
 } from '../utils/biometricKeys'
 import ConfirmationModal from './ConfirmationModal'
 import { useTheme, THEMES } from '../hooks/useTheme'
+import { api } from '../api/client'
 
 type AuthMethod = 'oauth-pbkdf2' | 'oauth-argon2id' | 'biometric-keychain'
 
@@ -51,12 +51,6 @@ function Settings() {
   } | null>(null)
   const [appVersion, setAppVersion] = useState<string>('')
   const [checkingUpdate, setCheckingUpdate] = useState(false)
-  const [updateAvailable, setUpdateAvailable] = useState(false)
-  const [updateInfo, setUpdateInfo] = useState<{
-    version: string
-    body: string
-    date: string
-  } | null>(null)
   const [downloadProgress, setDownloadProgress] = useState(0)
   const [totalDownloadSize, setTotalDownloadSize] = useState(0)
   const [isDownloading, setIsDownloading] = useState(false)
@@ -83,8 +77,7 @@ function Settings() {
       setLoading(true)
       setError('')
 
-      const prefsResult = await invoke('get_auth_preferences')
-      const prefs = JSON.parse(prefsResult as string)
+      const prefs = await api.getAuthPreferences()
 
       const authMethod = prefs.auth_method ?? 'none'
       const sessionValid = prefs.session_valid ?? false
@@ -126,13 +119,6 @@ function Settings() {
       const update = await check()
 
       if (update?.available) {
-        setUpdateAvailable(true)
-        setUpdateInfo({
-          version: update.version || 'Unknown',
-          body: update.body || 'No release notes available.',
-          date: update.date || ''
-        })
-
         const shouldUpdate = await ask(
           `Version ${update.version} is available. You're currently on version ${appVersion}. \n\nRelease notes:\n${update.body}\n\nWould you like to install this update?`,
           { title: 'Update Available', kind: 'info' }
@@ -161,12 +147,10 @@ function Settings() {
           await relaunch()
         }
       } else {
-        setUpdateAvailable(false)
         await message(`You're already on the latest version (${appVersion}).`, { title: 'Up to Date', kind: 'info' })
       }
     } catch (err) {
       console.error('Failed to check for updates:', err)
-      setUpdateAvailable(false)
 
       const errorMessage = err instanceof Error ? err.message : String(err)
 
@@ -233,11 +217,7 @@ function Settings() {
     try {
       const keyHex = await generateAndStoreKey()
       try {
-        await invoke('reencrypt_vault', {
-          newKeyHex: keyHex,
-          newKdf: 'biometric-keychain',
-          newSalt: ''
-        })
+        await api.reencryptVault(keyHex, 'biometric-keychain', '')
         await loadPreferences()
       } catch (reencryptErr) {
         await clearStoredKey()
@@ -268,7 +248,7 @@ function Settings() {
         throw new Error('No ID token received from Google')
       }
 
-      await invoke('reencrypt_vault_to_oauth', { idToken: response.idToken })
+      await api.reencryptVaultToOAuth(response.idToken)
       await clearStoredKey()
       await loadPreferences()
     } catch (err) {
@@ -300,9 +280,9 @@ function Settings() {
 
   if (loading) {
     return (
-      <div className="settings-loading">
-        <div className="settings-loading-spinner"></div>
-        <span style={{ marginLeft: '12px' }}>Loading settings...</span>
+      <div className="flex items-center justify-center py-10 px-4">
+        <div className="w-6 h-6 border-2 border-brutal-yellow border-t-transparent rounded-full animate-spin"></div>
+        <span className="ml-3 text-brutal-white font-mono">Loading settings...</span>
       </div>
     )
   }
@@ -310,169 +290,175 @@ function Settings() {
   const currentLabel = getAuthMethodLabel(preferences.auth_method)
 
   return (
-    <div className="settings-container-grid">
-      <div className="settings-column">
-        <header className="settings-header">
-          <h2>Authentication</h2>
-          <div className="settings-header-meta">
-            <span className="settings-current-badge">{currentLabel}</span>
-            {preferences.session_valid && (
-              <span className="settings-session-timer">
-                {getSessionTimeRemaining()}
-              </span>
-            )}
-          </div>
-        </header>
-
-        <div className="settings-body">
-          <p className="settings-instruction">
-            Choose how you unlock your vault. Switching re-encrypts your data.
-          </p>
-
-          <div className="settings-radio-group">
-            <label
-              className={`settings-radio-option ${selectedMethod === 'biometric-keychain' ? 'selected' : ''} ${!biometricAvailable ? 'disabled' : ''}`}
-            >
-              <input
-                type="radio"
-                name="auth-method"
-                value="biometric-keychain"
-                checked={selectedMethod === 'biometric-keychain'}
-                onChange={() => setSelectedMethod('biometric-keychain')}
-                disabled={!biometricAvailable || switching}
-              />
-              <span className="settings-radio-label">Biometric</span>
-              <span className="settings-radio-description">
-                Fingerprint or face
-              </span>
-            </label>
-            <label
-              className={`settings-radio-option ${selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'selected' : ''}`}
-            >
-              <input
-                type="radio"
-                name="auth-method"
-                value="oauth-pbkdf2"
-                checked={selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id'}
-                onChange={() => setSelectedMethod('oauth-pbkdf2')}
-                disabled={switching}
-              />
-              <span className="settings-radio-label">Google OAuth</span>
-              <span className="settings-radio-description">
-                Sign in with Google
-              </span>
-            </label>
-          </div>
-
-          {hasChanges && (
-            <div className="settings-actions">
-              <button
-                className="settings-button settings-button-ghost"
-                onClick={handleCancel}
-                disabled={switching}
-              >
-                Cancel
-              </button>
-              <button
-                className="settings-button settings-button-primary"
-                onClick={handleSave}
-                disabled={switching}
-              >
-                {switching ? 'Saving…' : 'Save'}
-              </button>
+    <div className="px-5 py-5 animate-[settings-fade-in_0.3s_ease-out]">
+      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '32px', position: 'relative' }}>
+        <div className="flex flex-col gap-4 items-start">
+          <header className="flex items-baseline justify-between gap-3 flex-wrap pb-2.5 border-b border-[#555] mb-2">
+            <h2 className="font-mono text-2xl font-semibold tracking-wide text-brutal-yellow">Authentication</h2>
+            <div className="flex items-center gap-2.5">
+              <span className="text-[11px] font-medium text-white/80 bg-[#222] px-2 py-1 uppercase tracking-wider">{currentLabel}</span>
+              {preferences.session_valid && (
+                <span className="font-mono text-[11px] text-brutal-yellow opacity-90">
+                  {getSessionTimeRemaining()}
+                </span>
+              )}
             </div>
-          )}
-
-          {!biometricAvailable && preferences.auth_method !== 'biometric-keychain' && (
-            <p className="settings-hint">
-              Biometric authentication is not available on this device.
-            </p>
-          )}
-
-          <p className="settings-footnote">
-            Vault is encrypted locally. No backup. Lost access = lost data.
-          </p>
-        </div>
-
-        <div className="theme-picker-section">
-          <header className="settings-header" style={{ marginBottom: '12px' }}>
-            <h2>Appearance</h2>
           </header>
-          <div className="settings-body">
-            <p className="settings-instruction">
-              Choose the UI theme that suits your style. Changes apply instantly.
+
+          <div className="flex flex-col gap-2">
+            <p className="text-[13px] text-white/80 leading-relaxed">
+              Choose how you unlock your vault. Switching re-encrypts your data.
             </p>
-            <div className="theme-picker-grid">
-              {THEMES.map((t) => (
-                <div
-                  key={t.id}
-                  className={`theme-picker-card ${theme === t.id ? 'active' : ''}`}
-                  onClick={() => setTheme(t.id)}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <label
+                className={`flex flex-col gap-1.5 p-5 bg-brutal-black border-2 border-brutal-yellow cursor-pointer transition-transform duration-100 shadow-[6px_6px_0px_var(--color-brutal-yellow)] relative ${
+                  selectedMethod === 'biometric-keychain' ? 'bg-brutal-yellow' : ''
+                } ${!biometricAvailable ? 'opacity-50 cursor-not-allowed' : ''} ${
+                  !biometricAvailable && selectedMethod !== 'biometric-keychain' ? '' :
+                  selectedMethod !== 'biometric-keychain' ? 'hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_var(--color-brutal-yellow)]' : ''
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="auth-method"
+                  value="biometric-keychain"
+                  checked={selectedMethod === 'biometric-keychain'}
+                  onChange={() => setSelectedMethod('biometric-keychain')}
+                  disabled={!biometricAvailable || switching}
+                  className="absolute opacity-0 pointer-events-none"
+                />
+                <span className={`text-sm font-semibold ${selectedMethod === 'biometric-keychain' ? 'text-brutal-black' : 'text-brutal-white'}`}>Biometric</span>
+                <span className={`text-xs ${selectedMethod === 'biometric-keychain' ? 'text-white/80' : 'text-white/80'}`}>
+                  Fingerprint or face
+                </span>
+              </label>
+              <label
+                className={`flex flex-col gap-1.5 p-5 bg-brutal-black border-2 border-brutal-yellow cursor-pointer transition-transform duration-100 shadow-[6px_6px_0px_var(--color-brutal-yellow)] relative ${
+                  selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'bg-brutal-yellow' : ''
+                } ${
+                  selectedMethod !== 'oauth-pbkdf2' && selectedMethod !== 'oauth-argon2id' ? 'hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_var(--color-brutal-yellow)]' : ''
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="auth-method"
+                  value="oauth-pbkdf2"
+                  checked={selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id'}
+                  onChange={() => setSelectedMethod('oauth-pbkdf2')}
+                  disabled={switching}
+                  className="absolute opacity-0 pointer-events-none"
+                />
+                <span className={`text-sm font-semibold ${selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'text-brutal-black' : 'text-brutal-white'}`}>Google OAuth</span>
+                <span className={`text-xs ${selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'text-white/80' : 'text-white/80'}`}>
+                  Sign in with Google
+                </span>
+              </label>
+            </div>
+
+            {hasChanges && (
+              <div className="flex gap-2 justify-end pt-1">
+                <button
+                  onClick={handleCancel}
+                  disabled={switching}
+                  className="px-5 py-2.5 bg-brutal-black text-brutal-white border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <div className="theme-picker-swatch">
-                    <div className="theme-picker-swatch-bg" style={{ background: t.bg }} />
-                    <div className="theme-picker-swatch-accent" style={{ background: t.primary }} />
-                  </div>
-                  <span className="theme-picker-name">{t.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={switching}
+                  className="px-5 py-2.5 bg-brutal-yellow text-brutal-black border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-brutal-white hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {switching ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            )}
 
-      <div className="settings-column">
-        <div className="settings-section">
-          <header className="settings-header" style={{ marginBottom: '16px' }}>
-            <h2>Updates</h2>
-            <div className="settings-header-meta">
-              <span className="settings-current-badge">v{appVersion}</span>
-            </div>
-          </header>
-          <div className="settings-body">
-            <p className="settings-instruction" style={{ marginBottom: '12px' }}>
-              Check for updates to get the latest features and security improvements.
+            {!biometricAvailable && preferences.auth_method !== 'biometric-keychain' && (
+              <p className="text-xs text-brutal-gray -mt-1">Biometric authentication is not available on this device.</p>
+            )}
+
+            <p className="text-[11px] text-brutal-gray opacity-80 mt-1 pt-3 border-t border-[#555]">
+              Vault is encrypted locally. No backup. Lost access = lost data.
             </p>
-            <button
-              className="settings-button settings-button-primary"
-              onClick={checkForUpdates}
-              disabled={checkingUpdate || isDownloading || switching}
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              {checkingUpdate ? 'Checking…' : isDownloading ? 'Downloading…' : 'Check for Updates'}
-            </button>
-            {isDownloading && totalDownloadSize > 0 && (
-              <div style={{ marginTop: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px', opacity: 0.8 }}>
-                  <span>Downloading update...</span>
-                  <span>{Math.round((downloadProgress / totalDownloadSize) * 100)}%</span>
-                </div>
-                <div style={{ width: '100%', height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
+          </div>
+
+          <div>
+            <header className="flex items-baseline justify-between gap-3 flex-wrap pb-2.5 border-b border-[#555] mb-3">
+              <h2 className="font-mono text-2xl font-semibold tracking-wide text-brutal-yellow">Appearance</h2>
+            </header>
+            <div className="flex flex-col gap-2">
+              <p className="text-[13px] text-white/80 leading-relaxed">
+                Choose the UI theme that suits your style. Changes apply instantly.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginTop: '8px' }}>
+                {THEMES.map((t) => (
                   <div
-                    style={{
-                      width: `${Math.min((downloadProgress / totalDownloadSize) * 100, 100)}%`,
-                      height: '100%',
-                      background: 'var(--accent-color)',
-                      transition: 'width 0.2s ease'
-                    }}
-                  />
-                </div>
-                <div style={{ fontSize: '11px', opacity: 0.6, marginTop: '4px' }}>
-                  {(downloadProgress / (1024 * 1024)).toFixed(1)} MB / {(totalDownloadSize / (1024 * 1024)).toFixed(1)} MB
-                </div>
+                    key={t.id}
+                    onClick={() => setTheme(t.id)}
+                    className={`flex items-center gap-1.5 px-2 py-1 bg-brutal-black border-2 border-brutal-yellow cursor-pointer transition-transform duration-100 shadow-[6px_6px_0px_var(--color-brutal-yellow)] min-w-[110px] ${
+                      theme === t.id ? 'border-brutal-yellow bg-brutal-yellow shadow-[6px_6px_0px_var(--color-brutal-yellow)]' : 'hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)]'
+                    }`}
+                  >
+                    <div className="flex w-[14px] h-[14px] border border-white/15 overflow-hidden rounded-full flex-shrink-0">
+                      <div className="flex-[3]" style={{ background: t.bg }} />
+                      <div className="flex-1" style={{ background: t.primary }} />
+                    </div>
+                    <span className={`text-xs font-bold uppercase tracking-wider font-mono ${theme === t.id ? 'text-brutal-black' : 'text-brutal-white'}`}>{t.name}</span>
+                  </div>
+                ))}
               </div>
-            )}
-            {updateAvailable && updateInfo && !isDownloading && (
-              <div className="settings-update-info" style={{ marginTop: '12px', padding: '12px', background: 'var(--highlight-bg)', borderRadius: '8px', fontSize: '14px' }}>
-                <div style={{ fontWeight: 600, marginBottom: '4px' }}>Update Available: v{updateInfo.version}</div>
-                <div style={{ opacity: 0.8 }}>{updateInfo.body}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4 items-start">
+          <div>
+            <header className="flex items-baseline justify-between gap-3 flex-wrap pb-2.5 border-b border-[#555] mb-4">
+              <h2 className="font-mono text-2xl font-semibold tracking-wide text-brutal-yellow">Updates</h2>
+              <div className="flex items-center gap-2.5">
+                <span className="text-[11px] font-medium text-white/80 bg-[#222] px-2 py-1 uppercase tracking-wider">v{appVersion}</span>
               </div>
-            )}
+            </header>
+            <div className="flex flex-col gap-2">
+              <p className="text-[13px] text-white/80 leading-relaxed mb-3">
+                Check for updates to get the latest features and security improvements.
+              </p>
+              <button
+                onClick={checkForUpdates}
+                disabled={checkingUpdate || isDownloading || switching}
+                className="w-full px-5 py-2.5 bg-brutal-yellow text-brutal-black border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-brutal-white hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {checkingUpdate ? 'Checking…' : isDownloading ? 'Downloading…' : 'Check for Updates'}
+              </button>
+              {isDownloading && totalDownloadSize > 0 && (
+                <div className="mt-3">
+                  <div className="flex justify-between text-xs opacity-80 mb-1">
+                    <span>Downloading update...</span>
+                    <span>{Math.round((downloadProgress / totalDownloadSize) * 100)}%</span>
+                  </div>
+                  <div className="w-full h-1 bg-[#333] rounded overflow-hidden">
+                    <div
+                      style={{
+                        width: `${Math.min((downloadProgress / totalDownloadSize) * 100, 100)}%`,
+                        height: '100%',
+                        background: 'var(--color-brutal-yellow)',
+                        transition: 'width 0.2s ease'
+                      }}
+                    />
+                  </div>
+                  <div className="text-[11px] opacity-60 mt-1">
+                    {(downloadProgress / (1024 * 1024)).toFixed(1)} MB / {(totalDownloadSize / (1024 * 1024)).toFixed(1)} MB
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {error && <div className="settings-error">{error}</div>}
+      {error && <div className="mt-3 px-3.5 py-3 bg-brutal-red text-brutal-white text-[13px] leading-relaxed">{error}</div>}
       {confirmation && (
         <ConfirmationModal
           message={confirmation.message}

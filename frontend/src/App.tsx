@@ -1,19 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { z } from 'zod'
 import CommandPalette from './components/CommandPalette'
 import { useWindowAutoResize } from './hooks/useWindowAutoResize'
-
-const VaultStatusSchema = z.object({
-  has_vault: z.boolean(),
-  is_unlocked: z.boolean()
-})
-
-const AuthMethodResponseSchema = z.object({
-  status: z.string(),
-  auth_method: z.string()
-})
+import { api } from './api/client'
 
 type InitialMode =
   | 'auth-selector'
@@ -47,15 +36,13 @@ function App() {
   const checkVaultStatus = async () => {
     setLoading(true)
     try {
-      const result = await invoke('vault_status')
-      const status = VaultStatusSchema.parse(JSON.parse(result as string))
+      const status = await api.vaultStatus()
       setHasVault(status.has_vault)
       setIsUnlocked(status.is_unlocked)
 
       if (status.has_vault && !status.is_unlocked) {
-        const authResult = await invoke('get_vault_auth_method')
-        const auth = AuthMethodResponseSchema.parse(JSON.parse(authResult as string))
-        setAuthMethod(auth.auth_method)
+        const method = await api.getAuthMethod()
+        setAuthMethod(method)
       }
     } catch (error) {
       console.error('Failed to check vault status:', error)
@@ -66,9 +53,9 @@ function App() {
 
   if (loading) {
     return (
-      <div className="app-container" ref={appRef}>
-        <div className="command-palette">
-          <div className="palette-loading">Loading...</div>
+      <div className="w-full p-0 bg-brutal-black relative z-1 overflow-y-auto overflow-x-hidden" ref={appRef}>
+        <div className="w-full h-auto max-h-none bg-brutal-black border-none shadow-none flex flex-col overflow-visible">
+          <div className="p-8 text-center text-brutal-white font-bold tracking-wider uppercase">Loading...</div>
         </div>
       </div>
     )
@@ -83,7 +70,7 @@ function App() {
       : 'search'
 
   return (
-    <div className="app-container" ref={appRef}>
+    <div className="w-full p-0 bg-brutal-black relative z-1 overflow-y-auto overflow-x-hidden" ref={appRef}>
       <CommandPalette initialMode={initialMode} />
     </div>
   )
