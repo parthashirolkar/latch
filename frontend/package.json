@@ -20,7 +20,7 @@
     "@choochmeque/tauri-plugin-google-auth-api": "^0.5.0",
     "@fontsource-variable/geist": "^5.2.8",
     "@tailwindcss/vite": "^4.3.0",
-    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/api": "2.11.0",
     "@tauri-apps/plugin-dialog": "2.7.1",
     "@tauri-apps/plugin-process": "2.3.1",
     "@tauri-apps/plugin-shell": "2.3.3",
@@ -38,7 +38,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",
-    "@tauri-apps/cli": "^2.9.6",
+    "@tauri-apps/cli": "2.11.1",
     "@testing-library/react": "^16.0.0",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
@@ -52,5 +52,8 @@
     "typescript-eslint": "^8.29.1",
     "vite": "^7.3.0",
     "vitest": "^3.0.0"
+  },
+  "overrides": {
+    "@tauri-apps/api": "2.11.0"
   }
 }
