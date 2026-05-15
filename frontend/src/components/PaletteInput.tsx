@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { LucideIcon, Eye, EyeOff, Copy } from 'lucide-react'
+import { useClipboardGuard } from '../hooks/useClipboardGuard'
 
 interface PaletteInputProps {
   value: string
@@ -28,6 +29,7 @@ function PaletteInput({
 }: PaletteInputProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [showPassword, setShowPassword] = useState(false)
+  const { copy } = useClipboardGuard()
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -76,7 +78,7 @@ function PaletteInput({
             </button>
             <button
               type="button"
-              onClick={() => navigator.clipboard.writeText(value)}
+              onClick={() => copy(value)}
               title="Copy password"
               className="flex items-center justify-center w-11 h-11 bg-brutal-black border-2 border-brutal-yellow text-brutal-white cursor-pointer transition-transform duration-100 hover:bg-brutal-yellow hover:text-white hover:translate-x-[1px] hover:translate-y-[1px] shadow-[2px_2px_0px_var(--color-brutal-yellow)]"
             >

@@ -2,6 +2,30 @@ use crate::commands::VaultState;
 use serde_json::json;
 use tauri::State;
 
+fn session_remaining_seconds(workspace: &mut crate::vault::workspace::Workspace) -> u64 {
+    if !workspace.is_unlocked() {
+        return 0;
+    }
+
+    let Some(start) = workspace.session_start else {
+        workspace.lock();
+        return 0;
+    };
+
+    let Ok(elapsed) = start.elapsed() else {
+        workspace.lock();
+        return 0;
+    };
+
+    let elapsed_secs = elapsed.as_secs();
+    if elapsed_secs >= crate::vault::SESSION_TIMEOUT_SECS {
+        workspace.lock();
+        return 0;
+    }
+
+    crate::vault::SESSION_TIMEOUT_SECS - elapsed_secs
+}
+
 #[tauri::command]
 pub async fn lock_vault(state: State<'_, VaultState>) -> Result<String, String> {
     state.lock(|_, workspace| {
@@ -23,17 +47,8 @@ pub async fn get_auth_preferences(state: State<'_, VaultState>) -> Result<String
         } else {
             "none".to_string()
         };
+        let session_remaining = session_remaining_seconds(workspace);
         let is_unlocked = workspace.is_unlocked();
-
-        let session_remaining = if is_unlocked {
-            workspace
-                .session_start
-                .and_then(|start| start.elapsed().ok())
-                .map(|e| 30 * 60 - e.as_secs())
-                .unwrap_or(0)
-        } else {
-            0
-        };
 
         Ok(json!({
             "status": "success",
@@ -43,4 +58,23 @@ pub async fn get_auth_preferences(state: State<'_, VaultState>) -> Result<String
         })
         .to_string())
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::vault::workspace::Workspace;
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn expired_session_remaining_time_is_zero_and_locks_workspace() {
+        let mut workspace = Workspace::new();
+        workspace.start([3u8; 32]);
+        workspace.session_start =
+            Some(SystemTime::now() - Duration::from_secs(crate::vault::SESSION_TIMEOUT_SECS + 1));
+
+        let remaining = super::session_remaining_seconds(&mut workspace);
+
+        assert_eq!(remaining, 0);
+        assert!(!workspace.is_unlocked());
+    }
 }

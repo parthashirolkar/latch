@@ -49,7 +49,11 @@ fn validate_entry_fields(
 #[tauri::command]
 pub async fn search_entries(query: String, state: State<'_, VaultState>) -> Result<String, String> {
     let results = state.lock(|_, workspace| crate::vault::search::search(workspace, &query))?;
-    serde_json::to_string(&results).map_err(|e| format!("Failed to serialize results: {}", e))
+    Ok(json!({
+        "status": "success",
+        "entries": results
+    })
+    .to_string())
 }
 
 #[tauri::command]
@@ -97,7 +101,11 @@ pub async fn get_full_entry(
 ) -> Result<String, String> {
     let entry = state.lock(|_, workspace| crate::vault::entries::get_full(workspace, &entry_id))?;
 
-    serde_json::to_string(&entry).map_err(|e| format!("Failed to serialize entry: {}", e))
+    Ok(json!({
+        "status": "success",
+        "entry": entry
+    })
+    .to_string())
 }
 
 #[tauri::command]

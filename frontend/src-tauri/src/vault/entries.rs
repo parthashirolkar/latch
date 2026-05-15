@@ -8,10 +8,9 @@ pub fn add(workspace: &mut Workspace, storage: &VaultStorage, entry: Entry) -> R
     persist(workspace, storage)
 }
 
-pub fn get_full(workspace: &Workspace, id: &str) -> Result<Entry, String> {
-    if !workspace.is_unlocked() {
-        return Err("Vault is locked".to_string());
-    }
+pub fn get_full(workspace: &mut Workspace, id: &str) -> Result<Entry, String> {
+    workspace.check_session()?;
+    workspace.refresh();
     workspace
         .credentials
         .iter()
@@ -75,4 +74,37 @@ fn persist(workspace: &Workspace, storage: &VaultStorage) -> Result<(), String> 
     let mut vault = storage.read()?;
     vault.data = encrypted;
     storage.write(&vault)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, SystemTime};
+
+    fn unlocked_workspace() -> Workspace {
+        let mut workspace = Workspace::new();
+        workspace.credentials.push(Entry {
+            id: "entry-1".to_string(),
+            title: "Example".to_string(),
+            username: "user".to_string(),
+            password: "secret".to_string(),
+            url: None,
+            icon_url: None,
+        });
+        workspace.start([7u8; 32]);
+        workspace
+    }
+
+    #[test]
+    fn get_full_rejects_expired_session() {
+        let mut workspace = unlocked_workspace();
+        workspace.session_start =
+            Some(SystemTime::now() - Duration::from_secs(super::super::SESSION_TIMEOUT_SECS + 1));
+
+        let result = get_full(&mut workspace, "entry-1");
+
+        assert_eq!(result.unwrap_err(), "Session expired");
+        assert!(workspace.session_key.is_none());
+        assert!(workspace.credentials.is_empty());
+    }
 }

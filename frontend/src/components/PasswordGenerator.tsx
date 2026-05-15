@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '../api/client'
 import { Shuffle, Copy, Check } from 'lucide-react'
 import StrengthMeter from './StrengthMeter'
+import { useClipboardGuard } from '../hooks/useClipboardGuard'
 
 interface PasswordGeneratorProps {
   onPasswordSelect: (password: string) => void
@@ -34,6 +35,7 @@ export default function PasswordGenerator({
   const [generatedPassword, setGeneratedPassword] = useState('')
   const [copied, setCopied] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const { copy } = useClipboardGuard()
 
   const generatePassword = useCallback(async () => {
     try {
@@ -52,9 +54,9 @@ export default function PasswordGenerator({
   }, [options.length, options.uppercase, options.lowercase, options.numbers, options.symbols, options.exclude_ambiguous])
 
   const handleCopy = useCallback(async () => {
-    await navigator.clipboard.writeText(generatedPassword)
+    await copy(generatedPassword)
     setCopied(true)
-  }, [generatedPassword])
+  }, [copy, generatedPassword])
 
   const handleUsePassword = useCallback(() => {
     onPasswordSelect(generatedPassword)

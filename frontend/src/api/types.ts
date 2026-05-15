@@ -1,12 +1,14 @@
 import { z } from 'zod'
 
+const OptionalStringSchema = z.string().nullable().optional()
+
 export const CredentialSchema = z.object({
   id: z.string(),
   title: z.string(),
   username: z.string(),
   password: z.string(),
-  url: z.string().optional(),
-  icon_url: z.string().optional(),
+  url: OptionalStringSchema,
+  icon_url: OptionalStringSchema,
 })
 export type Credential = z.infer<typeof CredentialSchema>
 
@@ -36,6 +38,27 @@ export const SecretResponseSchema = z.discriminatedUnion('status', [
 export const AuthMethodResponseSchema = z.object({
   status: z.string(),
   auth_method: z.string(),
+})
+
+export const VaultStatusResponseSchema = z.object({
+  status: z.literal('success'),
+  has_vault: z.boolean(),
+  is_unlocked: z.boolean(),
+})
+
+export const SearchEntriesResponseSchema = z.object({
+  status: z.literal('success'),
+  entries: z.array(CredentialPreviewSchema),
+})
+
+export const FullEntryResponseSchema = z.object({
+  status: z.literal('success'),
+  entry: CredentialSchema,
+})
+
+export const AddEntryResponseSchema = z.object({
+  status: z.literal('success'),
+  id: z.string(),
 })
 
 export const PasswordOptionsSchema = z.object({

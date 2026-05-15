@@ -1,5 +1,6 @@
 import { AlertTriangle, ArrowRight, Copy } from 'lucide-react'
 import { HealthList } from './HealthList'
+import { useClipboardGuard } from '../../hooks/useClipboardGuard'
 
 interface WeakPassword {
   entry_id: string
@@ -23,6 +24,8 @@ const getStrengthLabel = (score: number) => {
 }
 
 export default function WeakPasswordsList({ onSelectEntry }: WeakPasswordsListProps) {
+  const { copy } = useClipboardGuard()
+
   return (
     <HealthList<WeakPassword>
       title="Weak Passwords"
@@ -56,7 +59,7 @@ export default function WeakPasswordsList({ onSelectEntry }: WeakPasswordsListPr
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    navigator.clipboard.writeText(weak.username)
+                    copy(weak.username)
                   }}
                   title="Copy username"
                   className="flex items-center justify-center w-11 h-11 bg-brutal-black border-2 border-brutal-yellow text-brutal-white cursor-pointer transition-transform duration-100 hover:bg-brutal-yellow hover:text-white shadow-[2px_2px_0px_var(--color-brutal-yellow)]"

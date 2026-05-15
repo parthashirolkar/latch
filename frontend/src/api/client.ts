@@ -1,10 +1,12 @@
 import { invoke } from '@tauri-apps/api/core'
 import {
-  CredentialPreviewSchema,
-  CredentialSchema,
   SecretResponseSchema,
   ResponseSchema,
   AuthMethodResponseSchema,
+  AddEntryResponseSchema,
+  FullEntryResponseSchema,
+  SearchEntriesResponseSchema,
+  VaultStatusResponseSchema,
   VaultHealthReportSchema,
   type Credential,
   type CredentialPreview,
@@ -55,7 +57,8 @@ export const api = {
 
   async vaultStatus(): Promise<{ has_vault: boolean; is_unlocked: boolean }> {
     const result = await invoke('vault_status')
-    return JSON.parse(result as string)
+    const parsed = VaultStatusResponseSchema.parse(JSON.parse(result as string))
+    return { has_vault: parsed.has_vault, is_unlocked: parsed.is_unlocked }
   },
 
   async getAuthMethod(): Promise<string> {
@@ -66,7 +69,7 @@ export const api = {
   // Credentials
   async searchEntries(query: string): Promise<CredentialPreview[]> {
     const result = await invoke('search_entries', { query })
-    return CredentialPreviewSchema.array().parse(JSON.parse(result as string))
+    return SearchEntriesResponseSchema.parse(JSON.parse(result as string)).entries
   },
 
   async copyField(entryId: string, field: 'password' | 'username'): Promise<string> {
@@ -78,7 +81,7 @@ export const api = {
 
   async getFullEntry(entryId: string): Promise<Credential> {
     const result = await invoke('get_full_entry', { entryId })
-    return CredentialSchema.parse(JSON.parse(result as string))
+    return FullEntryResponseSchema.parse(JSON.parse(result as string)).entry
   },
 
   async addEntry(entry: {
@@ -86,9 +89,7 @@ export const api = {
     url?: string; iconUrl?: string;
   }): Promise<string> {
     const result = await invoke('add_entry', entry)
-    const data = JSON.parse(result as string)
-    parse(data, ResponseSchema)
-    return data.id as string
+    return AddEntryResponseSchema.parse(JSON.parse(result as string)).id
   },
 
   async updateEntry(entry: {

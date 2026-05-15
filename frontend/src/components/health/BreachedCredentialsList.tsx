@@ -1,5 +1,6 @@
 import { AlertOctagon, ArrowRight, ExternalLink, Copy } from 'lucide-react'
 import { HealthList } from './HealthList'
+import { useClipboardGuard } from '../../hooks/useClipboardGuard'
 
 interface BreachedCredential {
   entry_id: string
@@ -13,6 +14,8 @@ interface BreachedCredentialsListProps {
 }
 
 export default function BreachedCredentialsList({ onSelectEntry }: BreachedCredentialsListProps) {
+  const { copy } = useClipboardGuard()
+
   return (
     <HealthList<BreachedCredential>
       title="Breached Credentials"
@@ -46,7 +49,7 @@ export default function BreachedCredentialsList({ onSelectEntry }: BreachedCrede
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    navigator.clipboard.writeText(breached.username)
+                    copy(breached.username)
                   }}
                   title="Copy username"
                   className="flex items-center justify-center w-11 h-11 bg-brutal-black border-2 border-brutal-yellow text-brutal-white cursor-pointer transition-transform duration-100 hover:bg-brutal-yellow hover:text-white shadow-[2px_2px_0px_var(--color-brutal-yellow)]"

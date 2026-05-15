@@ -246,7 +246,12 @@ pub async fn vault_status(state: State<'_, VaultState>) -> Result<String, String
     state.lock(|storage, workspace| {
         let unlocked = workspace.is_unlocked();
         let has_vault = storage.exists();
-        Ok(json!({"has_vault": has_vault, "is_unlocked": unlocked}).to_string())
+        Ok(json!({
+            "status": "success",
+            "has_vault": has_vault,
+            "is_unlocked": unlocked
+        })
+        .to_string())
     })
 }
 

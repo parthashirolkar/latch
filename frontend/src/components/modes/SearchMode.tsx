@@ -107,7 +107,7 @@ function SearchMode({ onModeChange, onLock, searchTrigger }: SearchModeProps) {
     title: entry.title,
     subtitle: entry.username,
     icon: Lock,
-    iconUrl: entry.icon_url,
+    iconUrl: entry.icon_url ?? undefined,
   }))
 
   const showList = searchResults.length > 0
@@ -132,8 +132,11 @@ function SearchMode({ onModeChange, onLock, searchTrigger }: SearchModeProps) {
           selectedIndex={selectedIndex}
           onItemHover={setHoveredEntryId}
           onSelect={(_item, index) => {
+            const selected = searchResults[index]
             setSelectedIndex(index)
-            handleEnterKey()
+            if (selected) {
+              onModeChange('actions', selected)
+            }
           }}
         />
       )}

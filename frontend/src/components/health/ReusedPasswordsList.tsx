@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AlertTriangle, ArrowRight, Copy, ExternalLink, Eye, EyeOff } from 'lucide-react'
 import { HealthList } from './HealthList'
+import { useClipboardGuard } from '../../hooks/useClipboardGuard'
 
 interface ReusedEntry {
   entry_id: string
@@ -20,6 +21,7 @@ interface ReusedPasswordsListProps {
 
 export default function ReusedPasswordsList({ onSelectEntry }: ReusedPasswordsListProps) {
   const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set())
+  const { copy } = useClipboardGuard()
 
   const togglePasswordVisibility = (index: number) => {
     setVisiblePasswords((prev) => {
@@ -75,7 +77,7 @@ export default function ReusedPasswordsList({ onSelectEntry }: ReusedPasswordsLi
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  navigator.clipboard.writeText(reused.password)
+                  copy(reused.password)
                 }}
                 title="Copy password"
                 className="flex items-center justify-center w-11 h-11 bg-brutal-black border-2 border-brutal-yellow text-brutal-white cursor-pointer transition-transform duration-100 hover:bg-brutal-yellow hover:text-white shadow-[2px_2px_0px_var(--color-brutal-yellow)]"
