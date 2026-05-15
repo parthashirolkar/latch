@@ -1,6 +1,7 @@
 use super::{workspace::Workspace, EntryPreview};
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
+use std::cmp::Reverse;
 
 pub fn search(workspace: &mut Workspace, query: &str) -> Result<Vec<EntryPreview>, String> {
     workspace.check_session()?;
@@ -25,6 +26,6 @@ pub fn search(workspace: &mut Workspace, query: &str) -> Result<Vec<EntryPreview
         })
         .collect();
 
-    scored.sort_by(|a, b| b.0.cmp(&a.0));
+    scored.sort_by_key(|entry| Reverse(entry.0));
     Ok(scored.into_iter().map(|(_, p)| p).collect())
 }

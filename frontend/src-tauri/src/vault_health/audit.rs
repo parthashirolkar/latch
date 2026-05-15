@@ -1,5 +1,6 @@
 use crate::vault::Entry;
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 use std::collections::HashMap;
 
 use super::breach_checker::BreachChecker;
@@ -100,7 +101,7 @@ pub fn check_reused_passwords(entries: &[Entry]) -> Vec<ReusedPassword> {
         }
     }
 
-    reused_passwords.sort_by(|a, b| b.count.cmp(&a.count));
+    reused_passwords.sort_by_key(|entry| Reverse(entry.count));
     reused_passwords
 }
 
@@ -123,7 +124,7 @@ pub async fn check_breach_status(
         }
     }
 
-    breached_credentials.sort_by(|a, b| b.breach_count.cmp(&a.breach_count));
+    breached_credentials.sort_by_key(|entry| Reverse(entry.breach_count));
     breached_credentials
 }
 
