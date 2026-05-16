@@ -12,6 +12,8 @@ import {
 import ConfirmationModal from './ConfirmationModal'
 import { useTheme, THEMES } from '../hooks/useTheme'
 import { api } from '../api/client'
+import { Google } from './ui/svgs/google'
+import FingerprintIcon from './icons/FingerprintIcon'
 
 type AuthMethod = 'oauth-pbkdf2' | 'oauth-argon2id' | 'biometric-keychain'
 
@@ -281,8 +283,8 @@ function Settings() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-10 px-4">
-        <div className="w-6 h-6 border-2 border-brutal-yellow border-t-transparent rounded-full animate-spin"></div>
-        <span className="ml-3 text-brutal-white font-mono">Loading settings...</span>
+        <div className="w-6 h-6 border-2 border-theme-accent border-t-transparent rounded-full animate-spin"></div>
+        <span className="ml-3 text-theme-text font-theme">Loading settings...</span>
       </div>
     )
   }
@@ -293,12 +295,12 @@ function Settings() {
     <div className="px-5 py-5 animate-[settings-fade-in_0.3s_ease-out]">
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '32px', position: 'relative' }}>
         <div className="flex flex-col gap-4 items-start">
-          <header className="flex items-baseline justify-between gap-3 flex-wrap pb-2.5 border-b border-[#555] mb-2">
-            <h2 className="font-mono text-2xl font-semibold tracking-wide text-brutal-yellow">Authentication</h2>
+          <header className="flex items-baseline justify-between gap-3 flex-wrap pb-2.5 border-b border-theme-border mb-2">
+            <h2 className="font-theme text-2xl font-semibold tracking-wide text-theme-accent">Authentication</h2>
             <div className="flex items-center gap-2.5">
-              <span className="text-[11px] font-medium text-white/80 bg-[#222] px-2 py-1 uppercase tracking-wider">{currentLabel}</span>
+              <span className="text-[11px] font-medium text-theme-text-secondary bg-theme-surface px-2 py-1 uppercase tracking-wider">{currentLabel}</span>
               {preferences.session_valid && (
-                <span className="font-mono text-[11px] text-brutal-yellow opacity-90">
+                <span className="font-theme text-[11px] text-theme-accent opacity-90">
                   {getSessionTimeRemaining()}
                 </span>
               )}
@@ -306,17 +308,17 @@ function Settings() {
           </header>
 
           <div className="flex flex-col gap-2">
-            <p className="text-[13px] text-white/80 leading-relaxed">
+            <p className="text-[13px] text-theme-text-secondary leading-relaxed">
               Choose how you unlock your vault. Switching re-encrypts your data.
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <label
-                className={`flex flex-col gap-1.5 p-5 bg-brutal-black border-2 border-brutal-yellow cursor-pointer transition-transform duration-100 shadow-[6px_6px_0px_var(--color-brutal-yellow)] relative ${
-                  selectedMethod === 'biometric-keychain' ? 'bg-brutal-yellow' : ''
+                className={`flex flex-col gap-1.5 p-5 border-2 border-theme-accent cursor-pointer transition-transform duration-100 shadow-theme relative ${
+                  selectedMethod === 'biometric-keychain' ? 'bg-theme-accent' : 'bg-theme-bg'
                 } ${!biometricAvailable ? 'opacity-50 cursor-not-allowed' : ''} ${
                   !biometricAvailable && selectedMethod !== 'biometric-keychain' ? '' :
-                  selectedMethod !== 'biometric-keychain' ? 'hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_var(--color-brutal-yellow)]' : ''
+                  selectedMethod !== 'biometric-keychain' ? 'hover:bg-theme-surface hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-theme-sm' : ''
                 }`}
               >
                 <input
@@ -328,16 +330,19 @@ function Settings() {
                   disabled={!biometricAvailable || switching}
                   className="absolute opacity-0 pointer-events-none"
                 />
-                <span className={`text-sm font-semibold ${selectedMethod === 'biometric-keychain' ? 'text-brutal-black' : 'text-brutal-white'}`}>Biometric</span>
-                <span className={`text-xs ${selectedMethod === 'biometric-keychain' ? 'text-white/80' : 'text-white/80'}`}>
+                <span className={`text-sm font-semibold inline-flex items-center gap-1.5 ${selectedMethod === 'biometric-keychain' ? 'text-theme-accent-text' : 'text-theme-text'}`}>
+                  <FingerprintIcon size={17.6} className={selectedMethod === 'biometric-keychain' ? 'text-theme-accent-text' : 'text-theme-text'} />
+                  Biometric
+                </span>
+                <span className={`text-xs ${selectedMethod === 'biometric-keychain' ? 'text-theme-accent-text opacity-80' : 'text-theme-text-secondary'}`}>
                   Fingerprint or face
                 </span>
               </label>
               <label
-                className={`flex flex-col gap-1.5 p-5 bg-brutal-black border-2 border-brutal-yellow cursor-pointer transition-transform duration-100 shadow-[6px_6px_0px_var(--color-brutal-yellow)] relative ${
-                  selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'bg-brutal-yellow' : ''
+                className={`flex flex-col gap-1.5 p-5 border-2 border-theme-accent cursor-pointer transition-transform duration-100 shadow-theme relative ${
+                  selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'bg-theme-accent' : 'bg-theme-bg'
                 } ${
-                  selectedMethod !== 'oauth-pbkdf2' && selectedMethod !== 'oauth-argon2id' ? 'hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_var(--color-brutal-yellow)]' : ''
+                  selectedMethod !== 'oauth-pbkdf2' && selectedMethod !== 'oauth-argon2id' ? 'hover:bg-theme-surface hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-theme-sm' : ''
                 }`}
               >
                 <input
@@ -349,8 +354,11 @@ function Settings() {
                   disabled={switching}
                   className="absolute opacity-0 pointer-events-none"
                 />
-                <span className={`text-sm font-semibold ${selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'text-brutal-black' : 'text-brutal-white'}`}>Google OAuth</span>
-                <span className={`text-xs ${selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'text-white/80' : 'text-white/80'}`}>
+                <span className={`text-sm font-semibold inline-flex items-center gap-1.5 ${selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'text-theme-accent-text' : 'text-theme-text'}`}>
+                  <Google className="w-4 h-4 flex-shrink-0" />
+                  Google OAuth
+                </span>
+                <span className={`text-xs ${selectedMethod === 'oauth-pbkdf2' || selectedMethod === 'oauth-argon2id' ? 'text-theme-accent-text opacity-80' : 'text-theme-text-secondary'}`}>
                   Sign in with Google
                 </span>
               </label>
@@ -361,14 +369,14 @@ function Settings() {
                 <button
                   onClick={handleCancel}
                   disabled={switching}
-                  className="px-5 py-2.5 bg-brutal-black text-brutal-white border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 bg-theme-bg text-theme-text border-2 border-theme-accent font-extrabold font-theme uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-theme-surface hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-theme-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={switching}
-                  className="px-5 py-2.5 bg-brutal-yellow text-brutal-black border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-brutal-white hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 bg-theme-accent text-theme-bg border-2 border-theme-accent font-extrabold font-theme uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-theme-text hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-theme-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {switching ? 'Saving…' : 'Save'}
                 </button>
@@ -376,20 +384,20 @@ function Settings() {
             )}
 
             {!biometricAvailable && preferences.auth_method !== 'biometric-keychain' && (
-              <p className="text-xs text-brutal-gray -mt-1">Biometric authentication is not available on this device.</p>
+              <p className="text-xs text-theme-text-secondary -mt-1">Biometric authentication is not available on this device.</p>
             )}
 
-            <p className="text-[11px] text-brutal-gray opacity-80 mt-1 pt-3 border-t border-[#555]">
+            <p className="text-[11px] text-theme-text-secondary opacity-80 mt-1 pt-3 border-t border-theme-border">
               Vault is encrypted locally. No backup. Lost access = lost data.
             </p>
           </div>
 
           <div>
-            <header className="flex items-baseline justify-between gap-3 flex-wrap pb-2.5 border-b border-[#555] mb-3">
-              <h2 className="font-mono text-2xl font-semibold tracking-wide text-brutal-yellow">Appearance</h2>
+            <header className="flex items-baseline justify-between gap-3 flex-wrap pb-2.5 border-b border-theme-border mb-3">
+              <h2 className="font-theme text-2xl font-semibold tracking-wide text-theme-accent">Appearance</h2>
             </header>
             <div className="flex flex-col gap-2">
-              <p className="text-[13px] text-white/80 leading-relaxed">
+              <p className="text-[13px] text-theme-text-secondary leading-relaxed">
                 Choose the UI theme that suits your style. Changes apply instantly.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginTop: '8px' }}>
@@ -397,15 +405,15 @@ function Settings() {
                   <div
                     key={t.id}
                     onClick={() => setTheme(t.id)}
-                    className={`flex items-center gap-1.5 px-2 py-1 bg-brutal-black border-2 border-brutal-yellow cursor-pointer transition-transform duration-100 shadow-[6px_6px_0px_var(--color-brutal-yellow)] min-w-[110px] ${
-                      theme === t.id ? 'border-brutal-yellow bg-brutal-yellow shadow-[6px_6px_0px_var(--color-brutal-yellow)]' : 'hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)]'
+                    className={`flex items-center gap-1.5 px-2 py-1 border-2 border-theme-accent cursor-pointer transition-transform duration-100 min-w-[110px] ${
+                      theme === t.id ? 'bg-theme-accent shadow-theme' : 'bg-theme-bg shadow-theme hover:bg-theme-surface hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-theme-sm'
                     }`}
                   >
                     <div className="flex w-[14px] h-[14px] border border-white/15 overflow-hidden rounded-full flex-shrink-0">
                       <div className="flex-[3]" style={{ background: t.bg }} />
                       <div className="flex-1" style={{ background: t.primary }} />
                     </div>
-                    <span className={`text-xs font-bold uppercase tracking-wider font-mono ${theme === t.id ? 'text-brutal-black' : 'text-brutal-white'}`}>{t.name}</span>
+                    <span className={`text-xs font-bold uppercase tracking-wider font-theme ${theme === t.id ? 'text-theme-accent-text' : 'text-theme-text'}`}>{t.name}</span>
                   </div>
                 ))}
               </div>
@@ -415,20 +423,20 @@ function Settings() {
 
         <div className="flex flex-col gap-4 items-start">
           <div>
-            <header className="flex items-baseline justify-between gap-3 flex-wrap pb-2.5 border-b border-[#555] mb-4">
-              <h2 className="font-mono text-2xl font-semibold tracking-wide text-brutal-yellow">Updates</h2>
+            <header className="flex items-baseline justify-between gap-3 flex-wrap pb-2.5 border-b border-theme-border mb-4">
+              <h2 className="font-theme text-2xl font-semibold tracking-wide text-theme-accent">Updates</h2>
               <div className="flex items-center gap-2.5">
-                <span className="text-[11px] font-medium text-white/80 bg-[#222] px-2 py-1 uppercase tracking-wider">v{appVersion}</span>
+                <span className="text-[11px] font-medium text-theme-text-secondary bg-theme-surface px-2 py-1 uppercase tracking-wider">v{appVersion}</span>
               </div>
             </header>
             <div className="flex flex-col gap-2">
-              <p className="text-[13px] text-white/80 leading-relaxed mb-3">
+              <p className="text-[13px] text-theme-text-secondary leading-relaxed mb-3">
                 Check for updates to get the latest features and security improvements.
               </p>
               <button
                 onClick={checkForUpdates}
                 disabled={checkingUpdate || isDownloading || switching}
-                className="w-full px-5 py-2.5 bg-brutal-yellow text-brutal-black border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-brutal-white hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="w-full px-5 py-2.5 bg-theme-accent text-theme-bg border-2 border-theme-accent font-extrabold font-theme uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-theme-text hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-theme-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {checkingUpdate ? 'Checking…' : isDownloading ? 'Downloading…' : 'Check for Updates'}
               </button>
@@ -438,12 +446,12 @@ function Settings() {
                     <span>Downloading update...</span>
                     <span>{Math.round((downloadProgress / totalDownloadSize) * 100)}%</span>
                   </div>
-                  <div className="w-full h-1 bg-[#333] rounded overflow-hidden">
+                  <div className="w-full h-1 bg-theme-surface-hover rounded overflow-hidden">
                     <div
                       style={{
                         width: `${Math.min((downloadProgress / totalDownloadSize) * 100, 100)}%`,
                         height: '100%',
-                        background: 'var(--color-brutal-yellow)',
+                        background: 'var(--color-theme-accent)',
                         transition: 'width 0.2s ease'
                       }}
                     />
@@ -458,7 +466,7 @@ function Settings() {
         </div>
       </div>
 
-      {error && <div className="mt-3 px-3.5 py-3 bg-brutal-red text-brutal-white text-[13px] leading-relaxed">{error}</div>}
+      {error && <div className="mt-3 px-3.5 py-3 bg-theme-danger text-theme-text text-[13px] leading-relaxed">{error}</div>}
       {confirmation && (
         <ConfirmationModal
           message={confirmation.message}
@@ -471,3 +479,6 @@ function Settings() {
 }
 
 export default Settings
+
+
+

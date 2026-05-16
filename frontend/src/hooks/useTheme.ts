@@ -1,28 +1,27 @@
 import { useState, useEffect } from 'react'
 
-
-export type ThemeId = 'brutalist' | 'win98' | 'print-editorial' | 'terminal'
+export type ThemeId = 'dark-focus' | 'clean-light' | 'win98' | 'accessible'
 
 export const THEMES: { id: ThemeId; name: string; primary: string; bg: string }[] = [
-    { id: 'brutalist', name: 'Brutalist', primary: '#FF3B00', bg: '#111111' },
-    { id: 'win98', name: 'Windows 98', primary: '#000080', bg: '#008080' },
-    { id: 'print-editorial', name: 'Editorial', primary: '#DF2020', bg: '#F4F4F0' },
-    { id: 'terminal', name: 'Terminal', primary: '#00FF41', bg: '#000000' }
+    { id: 'dark-focus', name: 'Dark Focus', primary: 'oklch(0.65 0.10 150)', bg: 'oklch(0.18 0.01 260)' },
+    { id: 'clean-light', name: 'Clean Light', primary: 'oklch(0.50 0.14 255)', bg: 'oklch(0.97 0.005 80)' },
+    { id: 'win98', name: 'Win98', primary: '#000080', bg: '#008080' },
+    { id: 'accessible', name: 'High Contrast', primary: '#00FFFF', bg: '#000000' }
 ]
 
 export function useTheme() {
     const [theme, setThemeState] = useState<ThemeId>(() => {
-        const saved = localStorage.getItem('latch-theme') as ThemeId | null
-        return saved && THEMES.some((t) => t.id === saved) ? saved : 'brutalist'
+        const saved = localStorage.getItem('latch-theme')
+        // Migrate old theme names to new ones
+        if (saved === 'brutalist') return 'dark-focus'
+        if (saved === 'print-editorial') return 'clean-light'
+        if (saved === 'terminal') return 'accessible'
+        return saved && THEMES.some((t) => t.id === saved) ? (saved as ThemeId) : 'dark-focus'
     })
 
     // Apply theme to document when it changes
     useEffect(() => {
-        if (theme === 'brutalist') {
-            document.documentElement.removeAttribute('data-theme')
-        } else {
-            document.documentElement.setAttribute('data-theme', theme)
-        }
+        document.documentElement.setAttribute('data-theme', theme)
         localStorage.setItem('latch-theme', theme)
     }, [theme])
 
@@ -45,3 +44,5 @@ export function useTheme() {
 
     return { theme, setTheme }
 }
+
+

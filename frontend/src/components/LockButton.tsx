@@ -22,10 +22,13 @@ function LockButton({ onLock }: LockButtonProps) {
   }
 
   return (
-    <button onClick={handleLock} disabled={loading} className="bg-brutal-yellow text-brutal-black font-bold border-2 border-brutal-black px-4 py-2 cursor-pointer hover:bg-brutal-white shadow-[3px_3px_0px_var(--color-brutal-black)] disabled:opacity-50 disabled:cursor-not-allowed font-mono uppercase tracking-wider">
+    <button onClick={handleLock} disabled={loading} className="bg-theme-accent text-theme-bg font-bold border-2 border-theme-bg px-4 py-2 cursor-pointer hover:bg-theme-text shadow-theme-sm disabled:opacity-50 disabled:cursor-not-allowed font-theme uppercase tracking-wider">
       {loading ? 'Locking...' : <><Lock size={16} className="inline-block mr-1.5" /> Lock Vault</>}
     </button>
   )
 }
 
 export default LockButton
+
+
+

@@ -19,3 +19,5 @@ Object.defineProperty(window, 'clipboard', {
     writeText: vi.fn(),
   },
 })
+
+

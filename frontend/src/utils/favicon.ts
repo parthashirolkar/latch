@@ -17,3 +17,5 @@ export async function fetchFavicon(url: string): Promise<string | null> {
     return null
   }
 }
+
+

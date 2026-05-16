@@ -36,12 +36,12 @@ export default function WeakPasswordsList({ onSelectEntry }: WeakPasswordsListPr
       badgeBgColor="#ff4d4d20"
       renderBadge={(count) => count}
       renderItem={(weak, _index) => (
-        <button className="flex items-center justify-between gap-4 px-4 py-3 bg-brutal-red border-2 border-brutal-yellow cursor-pointer transition-transform duration-100 shadow-[6px_6px_0px_var(--color-brutal-yellow)] hover:bg-[#FFB5B5] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_var(--color-brutal-yellow)] w-full text-left">
-          <div className="flex items-center gap-3 text-brutal-white font-extrabold min-w-0 flex-1">
+        <button className="flex items-center justify-between gap-4 px-4 py-3 bg-theme-danger border-2 border-theme-accent cursor-pointer transition-transform duration-100 shadow-theme hover:bg-theme-danger hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-theme-sm w-full text-left">
+          <div className="flex items-center gap-3 text-theme-text font-extrabold min-w-0 flex-1">
             <AlertTriangle size={18} />
             <span>{weak.title}</span>
           </div>
-          <div className="flex items-center gap-2 text-white/80 text-sm">
+          <div className="flex items-center gap-2 text-theme-text-secondary text-sm">
             <span>{getStrengthLabel(weak.score)}</span>
             <ArrowRight size={16} />
           </div>
@@ -51,9 +51,9 @@ export default function WeakPasswordsList({ onSelectEntry }: WeakPasswordsListPr
         <div>
           {weak.username && (
             <div className="mb-4">
-              <span className="block text-xs text-brutal-gray uppercase tracking-wider mb-2 font-semibold">Username:</span>
+              <span className="block text-xs text-theme-text-secondary uppercase tracking-wider mb-2 font-semibold">Username:</span>
               <div className="flex items-center gap-3">
-                <span className="font-mono text-xl tracking-wider text-brutal-yellow bg-brutal-black px-4 py-3 border border-brutal-yellow break-all flex-1">
+                <span className="font-password text-xl tracking-wider text-theme-accent bg-theme-bg px-4 py-3 border border-theme-accent break-all flex-1">
                   {weak.username}
                 </span>
                 <button
@@ -62,7 +62,7 @@ export default function WeakPasswordsList({ onSelectEntry }: WeakPasswordsListPr
                     copy(weak.username)
                   }}
                   title="Copy username"
-                  className="flex items-center justify-center w-11 h-11 bg-brutal-black border-2 border-brutal-yellow text-brutal-white cursor-pointer transition-transform duration-100 hover:bg-brutal-yellow hover:text-white shadow-[2px_2px_0px_var(--color-brutal-yellow)]"
+                  className="flex items-center justify-center w-11 h-11 bg-theme-bg border-2 border-theme-accent text-theme-text cursor-pointer transition-transform duration-100 hover:bg-theme-accent hover:text-theme-accent-text shadow-theme-sm"
                 >
                   <Copy size={14} />
                 </button>
@@ -71,14 +71,14 @@ export default function WeakPasswordsList({ onSelectEntry }: WeakPasswordsListPr
           )}
 
           <div className="mb-4">
-            <span className="block text-xs text-brutal-gray uppercase tracking-wider mb-2 font-semibold">Strength:</span>
+            <span className="block text-xs text-theme-text-secondary uppercase tracking-wider mb-2 font-semibold">Strength:</span>
             <div className="mt-1" style={{ color: '#ff4d4d', fontSize: 'var(--font-sm)' }}>
               {weak.label} ({Math.round(weak.entropy)} bits)
             </div>
           </div>
 
           <button
-            className="w-full px-5 py-2.5 bg-brutal-yellow text-brutal-black border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-brutal-white hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none mt-3"
+            className="w-full px-5 py-2.5 bg-theme-accent text-theme-bg border-2 border-theme-accent font-extrabold font-theme uppercase tracking-wider cursor-pointer transition-transform duration-100 hover:bg-theme-text hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-theme-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none mt-3"
             onClick={(e) => {
               e.stopPropagation()
               onSelectEntry(weak.entry_id)
@@ -91,3 +91,6 @@ export default function WeakPasswordsList({ onSelectEntry }: WeakPasswordsListPr
     />
   )
 }
+
+
+

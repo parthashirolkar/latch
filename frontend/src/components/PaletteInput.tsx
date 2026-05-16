@@ -48,11 +48,11 @@ function PaletteInput({
   const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
 
   return (
-    <div className="border-b-2 border-brutal-yellow bg-brutal-yellow">
+    <div className="border-b-2 border-theme-accent bg-theme-accent">
       <div className="flex items-center px-5 py-4 gap-4">
         {Icon && (
           <Icon
-            className={`text-2xl flex-shrink-0 text-brutal-white ${iconSpin ? 'animate-spin' : ''}`}
+            className={`text-2xl flex-shrink-0 text-theme-text ${iconSpin ? 'animate-spin' : ''}`}
             size={20}
           />
         )}
@@ -64,7 +64,7 @@ function PaletteInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
-          className="flex-1 bg-transparent border-none outline-none text-[28px] leading-[1.1] font-mono text-brutal-white placeholder:text-white/60 disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`flex-1 bg-transparent border-none outline-none text-[20px] leading-[1.2] ${isPassword ? 'font-password' : 'font-theme'} text-theme-text placeholder:text-theme-text-inverse/60 disabled:opacity-50 disabled:cursor-not-allowed`}
         />
         {isPassword && value && (
           <div className="flex gap-2">
@@ -72,7 +72,7 @@ function PaletteInput({
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               title={showPassword ? 'Hide password' : 'Show password'}
-              className="flex items-center justify-center w-11 h-11 bg-brutal-black border-2 border-brutal-yellow text-brutal-white cursor-pointer transition-transform duration-100 hover:bg-brutal-yellow hover:text-white hover:translate-x-[1px] hover:translate-y-[1px] shadow-[2px_2px_0px_var(--color-brutal-yellow)]"
+              className="flex items-center justify-center w-11 h-11 bg-theme-bg border-2 border-theme-accent text-theme-text cursor-pointer transition-transform duration-100 hover:bg-theme-accent hover:text-theme-accent-text hover:translate-x-[1px] hover:translate-y-[1px] shadow-theme-sm"
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
@@ -80,14 +80,14 @@ function PaletteInput({
               type="button"
               onClick={() => copy(value)}
               title="Copy password"
-              className="flex items-center justify-center w-11 h-11 bg-brutal-black border-2 border-brutal-yellow text-brutal-white cursor-pointer transition-transform duration-100 hover:bg-brutal-yellow hover:text-white hover:translate-x-[1px] hover:translate-y-[1px] shadow-[2px_2px_0px_var(--color-brutal-yellow)]"
+              className="flex items-center justify-center w-11 h-11 bg-theme-bg border-2 border-theme-accent text-theme-text cursor-pointer transition-transform duration-100 hover:bg-theme-accent hover:text-theme-accent-text hover:translate-x-[1px] hover:translate-y-[1px] shadow-theme-sm"
             >
               <Copy size={16} />
             </button>
           </div>
         )}
         {hint && (
-          <span className="text-xs text-brutal-black bg-brutal-white border-2 border-brutal-white font-extrabold flex-shrink-0 tracking-wider uppercase shadow-[2px_2px_0px_var(--color-brutal-black)] px-3 py-1.5">
+          <span className="text-xs text-theme-bg bg-theme-text border-2 border-theme-text font-extrabold flex-shrink-0 tracking-wider uppercase shadow-theme-sm px-3 py-1.5">
             {hint}
           </span>
         )}
@@ -97,3 +97,6 @@ function PaletteInput({
 }
 
 export default PaletteInput
+
+
+

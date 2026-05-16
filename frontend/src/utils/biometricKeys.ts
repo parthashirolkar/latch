@@ -33,3 +33,5 @@ export async function hasStoredKey(): Promise<boolean> {
 export async function clearStoredKey(): Promise<void> {
   await removeData({ domain: KEYCHAIN_DOMAIN, name: KEYCHAIN_NAME })
 }
+
+

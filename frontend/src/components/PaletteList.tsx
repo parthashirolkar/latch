@@ -29,14 +29,14 @@ function PaletteList({ items, selectedIndex, onSelect, emptyMessage = 'No result
 
   if (items.length === 0 && emptyMessage) {
     return (
-      <div className="p-10 text-center text-white/80 font-mono">
+      <div className="p-10 text-center text-theme-text-secondary font-theme">
         <span>{emptyMessage}</span>
       </div>
     )
   }
 
   return (
-    <div className="max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-brutal-yellow [&::-webkit-scrollbar-thumb]:rounded-none">
+    <div className="max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-theme-accent [&::-webkit-scrollbar-thumb]:rounded-none">
       {items.map((item, index) => (
         <div
           key={item.id}
@@ -44,10 +44,10 @@ function PaletteList({ items, selectedIndex, onSelect, emptyMessage = 'No result
           onClick={() => onSelect(item, index)}
           onMouseEnter={() => onItemHover?.(item.id)}
           onMouseLeave={() => onItemHover?.(null)}
-          className={`flex items-center px-5 py-4 gap-4 cursor-pointer transition-all duration-100 border-b-2 border-brutal-yellow ${
+          className={`flex items-center px-4 py-3 gap-3 cursor-pointer transition-all duration-100 border-b border-theme-border ${
             index === selectedIndex
-              ? 'bg-brutal-yellow text-brutal-black'
-              : 'text-brutal-white hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px]'
+              ? 'bg-theme-accent text-theme-bg'
+              : 'text-theme-text hover:bg-theme-surface'
           }`}
         >
           {item.iconUrl && !failedIcons.has(item.iconUrl) ? (
@@ -61,16 +61,16 @@ function PaletteList({ items, selectedIndex, onSelect, emptyMessage = 'No result
             />
           ) : item.icon ? (
             <item.icon
-              className={`flex-shrink-0 ${index === selectedIndex ? 'text-brutal-black' : 'text-white/80'}`}
+              className={`flex-shrink-0 ${index === selectedIndex ? 'text-theme-bg' : 'text-theme-text-secondary'}`}
               size={18}
             />
           ) : null}
           <div className="flex-1 min-w-0">
-            <div className={`text-xl font-extrabold truncate uppercase ${index === selectedIndex ? 'text-brutal-black' : 'text-brutal-white'}`}>
+            <div className={`text-[15px] font-medium truncate ${index === selectedIndex ? 'text-theme-bg' : 'text-theme-text'}`}>
               {item.title}
             </div>
             {item.subtitle && (
-              <div className={`text-sm truncate font-mono ${index === selectedIndex ? 'text-brutal-black' : 'text-brutal-white'}`}>
+              <div className={`text-[13px] truncate font-theme font-normal ${index === selectedIndex ? 'text-theme-bg/80' : 'text-theme-text-secondary'}`}>
                 {item.subtitle}
               </div>
             )}
@@ -82,3 +82,6 @@ function PaletteList({ items, selectedIndex, onSelect, emptyMessage = 'No result
 }
 
 export default PaletteList
+
+
+
