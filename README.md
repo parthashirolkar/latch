@@ -11,7 +11,7 @@ graph TD
     AU[Auth<br/>Password · OAuth · Biometric · Lockout]
     VA[Vault<br/>Provision · Access · Rotate · Workspace · Storage]
     CR[Crypto<br/>AES-256-GCM]
-    VH[Vault Health<br/>Weak · Reused · Breached (HIBP)]
+    VH[Vault Health<br/>Weak · Reused · Breached via HIBP]
     PG[Password Generator<br/>zxcvbn]
     OS[(OS Config Dir)]
 
