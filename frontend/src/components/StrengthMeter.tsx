@@ -49,10 +49,10 @@ function getStrengthInfo(score: number): StrengthInfo {
       icon: Shield
     }
   }
-  return {
+    return {
     level: 'very-strong',
     label: 'Very Strong',
-    color: '#00ff9d',
+    color: '#059669',
     icon: Shield
   }
 }
@@ -102,26 +102,29 @@ export default function StrengthMeter({ password, showEntropy = false }: Strengt
     <div className="mt-2" style={{ opacity: isLoading ? 0.6 : 1, transition: 'opacity 0.15s ease' }}>
       <div className="flex items-center gap-2 mt-2.5">
         <Icon size={14} style={{ color: strengthInfo.color }} />
-        <span className="text-sm font-medium text-white/80" style={{ color: strengthInfo.color }}>
+        <span className="text-sm font-medium text-theme-text-secondary" style={{ color: strengthInfo.color }}>
           {strengthInfo.label}
         </span>
         {showEntropy && !isNaN(analysis.entropy) && (
-          <span className="font-mono text-xs text-brutal-gray ml-2">
+          <span className="font-theme text-xs text-theme-text-secondary ml-2">
             {Math.round(analysis.entropy)}-bit
           </span>
         )}
       </div>
-      <div className="h-1 bg-[#111] rounded overflow-hidden relative mt-1">
+      <div className="h-1 bg-theme-surface rounded overflow-hidden relative mt-1">
         <div
           className={`h-full rounded transition-all duration-300 ${
-            strengthInfo.level === 'very-weak' ? 'bg-[#ff4d4d] w-[20%]' :
-            strengthInfo.level === 'weak' ? 'bg-[#ffa500] w-[40%]' :
-            strengthInfo.level === 'fair' ? 'bg-[#ffcc00] w-[60%]' :
-            strengthInfo.level === 'strong' ? 'bg-[#90ee90] w-[80%]' :
-            'bg-[#00ff9d] w-full'
+            strengthInfo.level === 'very-weak' ? 'bg-theme-danger w-[20%]' :
+            strengthInfo.level === 'weak' ? 'bg-theme-accent w-[40%]' :
+            strengthInfo.level === 'fair' ? 'bg-theme-accent w-[60%]' :
+            strengthInfo.level === 'strong' ? 'bg-theme-success w-[80%]' :
+            'bg-theme-success w-full'
           }`}
         />
       </div>
     </div>
   )
 }
+
+
+

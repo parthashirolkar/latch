@@ -146,10 +146,10 @@ function AddCredential({ editEntry, prefillTitle, generatedPassword, onModeChang
         placeholder={isEditing ? 'Edit website URL...' : 'Website URL (optional)...'}
         icon={Globe}
       />
-      {error && <div className="px-3 py-3 bg-brutal-red border-b border-red-900/20 text-brutal-white text-sm">{error}</div>}
-      <div className="px-3 py-2 border-t-2 border-brutal-yellow bg-brutal-black flex items-center justify-evenly w-full">
-        <span className="text-[11px] text-white/80 inline-flex items-center gap-[5px] whitespace-nowrap">
-          <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">Enter</kbd> {isEditing ? 'Update' : 'Save'} <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">Esc</kbd> Cancel
+      {error && <div className="px-3 py-3 bg-theme-danger border-b border-red-900/20 text-theme-text text-sm">{error}</div>}
+      <div className="px-3 py-2 border-t-2 border-theme-accent bg-theme-bg flex items-center justify-evenly w-full">
+        <span className="text-[11px] text-theme-text-secondary inline-flex items-center gap-[5px] whitespace-nowrap">
+          <kbd className="inline-block px-[5px] py-[2px] bg-theme-surface border border-theme-border font-theme text-[10px] font-medium text-theme-text-secondary">Enter</kbd> {isEditing ? 'Update' : 'Save'} <kbd className="inline-block px-[5px] py-[2px] bg-theme-surface border border-theme-border font-theme text-[10px] font-medium text-theme-text-secondary">Esc</kbd> Cancel
         </span>
       </div>
     </>
@@ -157,3 +157,6 @@ function AddCredential({ editEntry, prefillTitle, generatedPassword, onModeChang
 }
 
 export default AddCredential
+
+
+

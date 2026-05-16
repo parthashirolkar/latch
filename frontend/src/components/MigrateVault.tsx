@@ -49,10 +49,10 @@ export default function MigrateVault({ onSuccess, onError }: MigrateVaultProps) 
 
   if (step === 'password') {
     return (
-      <div className="px-4 py-6 flex flex-col gap-4 bg-brutal-black">
+      <div className="px-4 py-6 flex flex-col gap-4 bg-theme-bg">
         <div className="text-center mb-2">
-          <h2 className="text-[28px] leading-[1.1] font-extrabold font-mono text-brutal-white">Migrate to Google Sign-In</h2>
-          <p className="text-sm text-white/80 font-mono">Enter your current master password to decrypt your vault</p>
+          <h2 className="text-[28px] leading-[1.1] font-extrabold font-theme text-theme-text">Migrate to Google Sign-In</h2>
+          <p className="text-sm text-theme-text-secondary font-theme">Enter your current master password to decrypt your vault</p>
         </div>
 
         <PaletteInput
@@ -68,14 +68,14 @@ export default function MigrateVault({ onSuccess, onError }: MigrateVaultProps) 
         <button
           onClick={handlePasswordSubmit}
           disabled={password.length === 0}
-          className="flex items-center justify-center gap-2 px-6 py-3 bg-brutal-yellow text-brutal-black border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-all duration-100 shadow-[4px_4px_0px_var(--color-brutal-yellow)] hover:bg-brutal-white hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:bg-brutal-gray disabled:cursor-not-allowed"
+          className="flex items-center justify-center gap-2 px-6 py-3 bg-theme-accent text-theme-bg border-2 border-theme-accent font-extrabold font-theme uppercase tracking-wider cursor-pointer transition-all duration-100 shadow-theme-sm hover:bg-theme-text hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-theme-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:bg-theme-text-secondary disabled:cursor-not-allowed"
         >
           <span>Continue</span>
           <ArrowRight size={16} />
         </button>
 
         <div className="text-center mt-2">
-          <p className="text-xs text-brutal-gray font-mono">This is a one-time migration. After completion, you'll use Google Sign-In.</p>
+          <p className="text-xs text-theme-text-secondary font-theme">This is a one-time migration. After completion, you'll use Google Sign-In.</p>
         </div>
       </div>
     )
@@ -83,33 +83,36 @@ export default function MigrateVault({ onSuccess, onError }: MigrateVaultProps) 
 
   if (step === 'oauth') {
     return (
-      <div className="px-4 py-6 flex flex-col gap-4 bg-brutal-black">
+      <div className="px-4 py-6 flex flex-col gap-4 bg-theme-bg">
         <div className="text-center mb-2">
-          <h2 className="text-[28px] leading-[1.1] font-extrabold font-mono text-brutal-white">Connect Google Account</h2>
-          <p className="text-sm text-white/80 font-mono">Sign in with Google to complete the migration</p>
+          <h2 className="text-[28px] leading-[1.1] font-extrabold font-theme text-theme-text">Connect Google Account</h2>
+          <p className="text-sm text-theme-text-secondary font-theme">Sign in with Google to complete the migration</p>
         </div>
 
         <button
           onClick={handleOAuthSignIn}
           disabled={isProcessing}
-          className="flex items-center justify-center gap-2.5 px-6 py-3 bg-brutal-black text-brutal-white border-2 border-brutal-yellow font-extrabold font-mono uppercase tracking-wider cursor-pointer transition-all duration-100 w-full max-w-[300px] mx-auto shadow-[4px_4px_0px_var(--color-brutal-yellow)] hover:bg-[#222] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_var(--color-brutal-yellow)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-45 disabled:cursor-not-allowed disabled:shadow-none"
+          className="flex items-center justify-center gap-2.5 px-6 py-3 bg-theme-bg text-theme-text border-2 border-theme-accent font-extrabold font-theme uppercase tracking-wider cursor-pointer transition-all duration-100 w-full max-w-[300px] mx-auto shadow-theme-sm hover:bg-theme-surface hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-theme-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none disabled:opacity-45 disabled:cursor-not-allowed disabled:shadow-none"
         >
           <Globe size={20} />
           <span>Sign in with Google</span>
         </button>
 
         <div className="text-center mt-2">
-          <p className="text-xs text-brutal-gray font-mono">Your vault will be re-encrypted with your Google identity</p>
+          <p className="text-xs text-theme-text-secondary font-theme">Your vault will be re-encrypted with your Google identity</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="px-6 py-10 flex flex-col items-center gap-3 text-center bg-brutal-black">
-      <Loader2 size={32} className="animate-spin text-brutal-yellow" />
-      <p className="text-base font-medium text-brutal-white">Migrating your vault...</p>
-      <span className="text-sm text-white/80">Please don't close the app</span>
+    <div className="px-6 py-10 flex flex-col items-center gap-3 text-center bg-theme-bg">
+      <Loader2 size={32} className="animate-spin text-theme-accent" />
+      <p className="text-base font-medium text-theme-text">Migrating your vault...</p>
+      <span className="text-sm text-theme-text-secondary">Please don't close the app</span>
     </div>
   )
 }
+
+
+

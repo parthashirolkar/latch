@@ -98,10 +98,10 @@ function EntryActions({ entry, onModeChange, onLock }: EntryActionsProps) {
           actions[index].handler()
         }}
       />
-      {error && <div className="px-3 py-3 bg-brutal-red border-b border-red-900/20 text-brutal-white text-sm">{error}</div>}
-      <div className="px-3 py-2 border-t-2 border-brutal-yellow bg-brutal-black flex items-center justify-evenly w-full">
-        <span className="text-[11px] text-white/80 inline-flex items-center gap-[5px] whitespace-nowrap">
-          <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">↑↓</kbd> Navigate <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">Enter</kbd> Execute <kbd className="inline-block px-[5px] py-[2px] bg-[#222] border border-[#555] font-mono text-[10px] font-medium text-white/80">Esc</kbd> Back
+      {error && <div className="px-3 py-3 bg-theme-danger border-b border-red-900/20 text-theme-text text-sm">{error}</div>}
+      <div className="px-3 py-2 border-t-2 border-theme-accent bg-theme-bg flex items-center justify-evenly w-full">
+        <span className="text-[11px] text-theme-text-secondary inline-flex items-center gap-[5px] whitespace-nowrap">
+          <kbd className="inline-block px-[5px] py-[2px] bg-theme-surface border border-theme-border font-theme text-[10px] font-medium text-theme-text-secondary">↑↓</kbd> Navigate <kbd className="inline-block px-[5px] py-[2px] bg-theme-surface border border-theme-border font-theme text-[10px] font-medium text-theme-text-secondary">Enter</kbd> Execute <kbd className="inline-block px-[5px] py-[2px] bg-theme-surface border border-theme-border font-theme text-[10px] font-medium text-theme-text-secondary">Esc</kbd> Back
         </span>
       </div>
     </>
@@ -109,3 +109,6 @@ function EntryActions({ entry, onModeChange, onLock }: EntryActionsProps) {
 }
 
 export default EntryActions
+
+
+

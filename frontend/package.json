@@ -1,6 +1,6 @@
 {
   "name": "latch-frontend",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Latch Password Manager Frontend",
   "type": "module",
   "scripts": {
@@ -19,6 +19,8 @@
     "@choochmeque/tauri-plugin-biometry-api": "^0.2.6",
     "@choochmeque/tauri-plugin-google-auth-api": "^0.5.0",
     "@fontsource-variable/geist": "^5.2.8",
+    "@hugeicons/core-free-icons": "^4.1.4",
+    "@hugeicons/react": "^1.1.6",
     "@tailwindcss/vite": "^4.3.0",
     "@tauri-apps/api": "2.11.0",
     "@tauri-apps/plugin-dialog": "2.7.1",

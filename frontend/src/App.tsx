@@ -53,9 +53,9 @@ function App() {
 
   if (loading) {
     return (
-      <div className="w-full p-0 bg-brutal-black relative z-1 overflow-y-auto overflow-x-hidden" ref={appRef}>
-        <div className="w-full h-auto max-h-none bg-brutal-black border-none shadow-none flex flex-col overflow-visible">
-          <div className="p-8 text-center text-brutal-white font-bold tracking-wider uppercase">Loading...</div>
+      <div className="w-full p-0 bg-theme-bg relative z-1 overflow-y-auto overflow-x-hidden" ref={appRef}>
+        <div className="w-full h-auto max-h-none bg-theme-bg border-none shadow-none flex flex-col overflow-visible">
+          <div className="p-8 text-center text-theme-text font-bold tracking-wider uppercase">Loading...</div>
         </div>
       </div>
     )
@@ -70,10 +70,12 @@ function App() {
       : 'search'
 
   return (
-    <div className="w-full p-0 bg-brutal-black relative z-1 overflow-y-auto overflow-x-hidden" ref={appRef}>
+    <div className="w-full p-0 bg-theme-bg relative z-1 overflow-y-auto overflow-x-hidden" ref={appRef}>
       <CommandPalette initialMode={initialMode} />
     </div>
   )
 }
 
 export default App
+
+

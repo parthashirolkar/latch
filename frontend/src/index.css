@@ -5,53 +5,125 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================
+   SEMANTIC THEME SYSTEM
+   ============================================================
+   To add a new theme:
+   1. Add theme metadata to useTheme.ts
+   2. Add a new html[data-theme="your-theme"] block below
+   3. Override --color-theme-* and --font-theme-* variables
+   4. Add structural overrides in the theme block if needed
+   ============================================================ */
+
 @theme {
-  /* Default: Neo-Brutalist — original palette */
-  --color-brutal-black: #111111;
-  --color-brutal-white: #F5F3EC;
-  --color-brutal-yellow: #FF3B00;
-  --color-brutal-red: #FF3B00;
-  --color-brutal-green: #44ff44;
-  --color-brutal-blue: #4444ff;
-  --color-brutal-gray: #888888;
-  --color-brutal-light: #f5f5f5;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* Semantic Color Palette — Default: Dark Focus */
+  --color-theme-bg: oklch(0.18 0.01 260);
+  --color-theme-surface: oklch(0.24 0.01 260);
+  --color-theme-surface-hover: oklch(0.28 0.01 260);
+  --color-theme-text: oklch(0.92 0.01 260);
+  --color-theme-text-secondary: oklch(0.65 0.01 260);
+  --color-theme-text-inverse: oklch(0.10 0.01 260);
+  --color-theme-accent: oklch(0.65 0.10 150);
+  --color-theme-accent-hover: oklch(0.70 0.12 150);
+  --color-theme-accent-text: oklch(0.10 0.01 260);
+  --color-theme-danger: oklch(0.60 0.15 25);
+  --color-theme-success: oklch(0.65 0.10 145);
+  --color-theme-border: oklch(0.30 0.01 260);
+
+  /* Typography */
+  --font-theme: 'Geist Variable', sans-serif;
+  --font-mono: 'Geist Variable', sans-serif;
+  --font-password: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Shadows */
+  --shadow-theme: 0 4px 12px oklch(0.10 0.01 260 / 0.3);
+  --shadow-theme-sm: 0 2px 6px oklch(0.10 0.01 260 / 0.2);
+  --shadow-theme-hover: 0 6px 16px oklch(0.10 0.01 260 / 0.4);
+  --shadow-theme-inset: inset 0 2px 0 oklch(0.10 0.01 260 / 0.1);
 }
 
-/* ── Windows 98 ───────────────────────────────────── */
+/* ── Clean Light ──────────────────────────────────── */
+html[data-theme="clean-light"] {
+  --color-theme-bg: oklch(0.97 0.005 80);
+  --color-theme-surface: oklch(1 0 0);
+  --color-theme-surface-hover: oklch(0.96 0.005 80);
+  --color-theme-text: oklch(0.20 0.01 80);
+  --color-theme-text-secondary: oklch(0.50 0.01 80);
+  --color-theme-text-inverse: oklch(1 0 0);
+  --color-theme-accent: oklch(0.50 0.14 255);
+  --color-theme-accent-hover: oklch(0.55 0.15 255);
+  --color-theme-accent-text: oklch(1 0 0);
+  --color-theme-danger: oklch(0.55 0.15 25);
+  --color-theme-success: oklch(0.55 0.12 145);
+  --color-theme-border: oklch(0.88 0.01 80);
+
+  --shadow-theme: 0 2px 8px oklch(0.20 0.01 80 / 0.08);
+  --shadow-theme-sm: 0 1px 3px oklch(0.20 0.01 80 / 0.06);
+  --shadow-theme-hover: 0 4px 12px oklch(0.20 0.01 80 / 0.12);
+  --shadow-theme-inset: inset 0 2px 0 oklch(0.20 0.01 80 / 0.05);
+}
+
+/* ── Win98 ────────────────────────────────────────── */
 html[data-theme="win98"] {
-  --color-brutal-black: #008080;
-  --color-brutal-white: #000000;
-  --color-brutal-yellow: #000080;
-  --color-brutal-red: #FF0000;
-  --color-brutal-green: #008000;
-  --color-brutal-gray: #808080;
-  --color-brutal-light: #C0C0C0;
-  --font-mono: Tahoma, "MS Sans Serif", Geneva, sans-serif;
+  --color-theme-bg: #C0C0C0;
+  --color-theme-surface: #D4D0C8;
+  --color-theme-surface-hover: #E0E0E0;
+  --color-theme-text: #000000;
+  --color-theme-text-secondary: #404040;
+  --color-theme-text-inverse: #FFFFFF;
+  --color-theme-accent: #000080;
+  --color-theme-accent-hover: #0000A0;
+  --color-theme-accent-text: #FFFFFF;
+  --color-theme-danger: #FF0000;
+  --color-theme-success: #008000;
+  --color-theme-border: #808080;
+
+  --font-theme: "MS Sans Serif", Tahoma, "Microsoft Sans Serif", sans-serif;
+  --font-mono: "MS Sans Serif", Tahoma, "Microsoft Sans Serif", sans-serif;
+  --font-password: "Courier New", Courier, monospace;
+
+  --shadow-theme: none;
+  --shadow-theme-sm: none;
+  --shadow-theme-hover: none;
+  --shadow-theme-inset: none;
 }
 
-/* ── Print Editorial ──────────────────────────────── */
-html[data-theme="print-editorial"] {
-  --color-brutal-black: #F4F4F0;
-  --color-brutal-white: #1A1A1A;
-  --color-brutal-yellow: #DF2020;
-  --color-brutal-red: #CC0000;
-  --color-brutal-green: #006600;
-  --color-brutal-gray: #999999;
-  --color-brutal-light: #FFFFFF;
-  --font-mono: "Helvetica Neue", Helvetica, Arial, sans-serif;
+html[data-theme="win98"] body {
+  background-color: #008080;
 }
 
-/* ── Terminal ─────────────────────────────────────── */
-html[data-theme="terminal"] {
-  --color-brutal-black: #000000;
-  --color-brutal-white: #00FF41;
-  --color-brutal-yellow: #00FF41;
-  --color-brutal-red: #FF4444;
-  --color-brutal-green: #00FF41;
-  --color-brutal-gray: #008822;
-  --color-brutal-light: #0A0A0A;
-  --font-mono: "Fira Code", "Courier New", monospace;
+/* Win98: ensure all text on accent (navy) backgrounds is white for contrast */
+html[data-theme="win98"] .bg-theme-accent .text-theme-text,
+html[data-theme="win98"] .bg-theme-accent .text-theme-bg,
+html[data-theme="win98"] .bg-theme-accent .text-theme-text-secondary,
+html[data-theme="win98"] .bg-theme-accent input,
+html[data-theme="win98"] .bg-theme-accent textarea {
+  color: #FFFFFF !important;
+}
+
+/* ── Accessible High Contrast ─────────────────────── */
+html[data-theme="accessible"] {
+  --color-theme-bg: #000000;
+  --color-theme-surface: #000000;
+  --color-theme-surface-hover: #000000;
+  --color-theme-text: #FFFFFF;
+  --color-theme-text-secondary: #FFFF00;
+  --color-theme-text-inverse: #000000;
+  --color-theme-accent: #00FFFF;
+  --color-theme-accent-hover: #FFFFFF;
+  --color-theme-accent-text: #000000;
+  --color-theme-danger: #FF0000;
+  --color-theme-success: #00FF00;
+  --color-theme-border: #FFFFFF;
+
+  --font-theme: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-password: "Courier New", Courier, monospace;
+
+  --shadow-theme: none;
+  --shadow-theme-sm: none;
+  --shadow-theme-hover: none;
+  --shadow-theme-inset: none;
 }
 
 * {
@@ -59,9 +131,9 @@ html[data-theme="terminal"] {
 }
 
 body {
-  font-family: var(--font-mono);
-  background-color: var(--color-brutal-black);
-  color: var(--color-brutal-white);
+  font-family: var(--font-theme);
+  background-color: var(--color-theme-bg);
+  color: var(--color-theme-text);
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -181,93 +253,137 @@ body {
 
 /* ── Theme structural overrides ──────────────────── */
 
-/* Win98: square everything, remove shadows */
-html[data-theme="win98"] * {
-  border-radius: 0 !important;
+/* Win98: square interactive elements, 3D bevels, smaller fonts */
+html[data-theme="win98"] button,
+html[data-theme="win98"] input,
+html[data-theme="win98"] textarea,
+html[data-theme="win98"] select,
+html[data-theme="win98"] [role="button"] {
+  border-radius: 0;
 }
 
-html[data-theme="win98"] [class*="shadow"] {
-  box-shadow: none !important;
+/* Preserve fully round elements (spinners, avatars) */
+html[data-theme="win98"] .rounded-full {
+  border-radius: 9999px !important;
 }
 
-/* Terminal: CRT scanlines + glow */
-html[data-theme="terminal"] body::after {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0.15) 0px,
-    rgba(0, 0, 0, 0.15) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  pointer-events: none;
-  z-index: 9998;
+/* Win98 button bevel effect via a utility class */
+html[data-theme="win98"] .theme-win98-bevel {
+  border-top: 1px solid #FFFFFF;
+  border-left: 1px solid #FFFFFF;
+  border-right: 1px solid #404040;
+  border-bottom: 1px solid #404040;
 }
 
-html[data-theme="terminal"] h1,
-html[data-theme="terminal"] h2,
-html[data-theme="terminal"] .text-glow {
-  text-shadow: 0 0 8px rgba(0, 255, 65, 0.5);
+html[data-theme="win98"] .theme-win98-bevel:active {
+  border-top: 1px solid #404040;
+  border-left: 1px solid #404040;
+  border-right: 1px solid #FFFFFF;
+  border-bottom: 1px solid #FFFFFF;
 }
 
-/* Print Editorial: denser typography */
-html[data-theme="print-editorial"] h1,
-html[data-theme="print-editorial"] h2 {
-  letter-spacing: -0.02em;
+/* Accessible: thick borders, no shadows, large focus rings */
+html[data-theme="accessible"] button,
+html[data-theme="accessible"] input,
+html[data-theme="accessible"] textarea,
+html[data-theme="accessible"] select,
+html[data-theme="accessible"] [role="button"] {
+  border-width: 2px;
+  border-color: #FFFFFF;
 }
 
-/* ── Hardcoded value overrides per theme ─────────── */
+html[data-theme="accessible"] :focus-visible {
+  outline: 3px solid #00FFFF;
+  outline-offset: 2px;
+}
 
-/* Win98: map dark greys to Win98 silver palette */
+/* Clean Light: subtle radius on inputs */
+html[data-theme="clean-light"] button,
+html[data-theme="clean-light"] input,
+html[data-theme="clean-light"] textarea,
+html[data-theme="clean-light"] select {
+  border-radius: 0.375rem;
+}
+
+/* Dark Focus (default): slight radius on inputs */
+html[data-theme="dark-focus"] button,
+html[data-theme="dark-focus"] input,
+html[data-theme="dark-focus"] textarea,
+html[data-theme="dark-focus"] select {
+  border-radius: 0.25rem;
+}
+
+/* ── Legacy value overrides for hardcoded colors ─── */
+
+/* Map hardcoded dark greys to semantic surfaces */
+html[data-theme="dark-focus"] .bg-\[\#222\],
+html[data-theme="dark-focus"] .hover\:bg-\[\#222\]:hover {
+  background-color: var(--color-theme-surface) !important;
+}
+
+html[data-theme="dark-focus"] .bg-\[\#333\] {
+  background-color: var(--color-theme-surface-hover) !important;
+}
+
+html[data-theme="dark-focus"] .border-\[\#555\] {
+  border-color: var(--color-theme-border) !important;
+}
+
+/* Clean Light: map dark greys to light surfaces */
+html[data-theme="clean-light"] .bg-\[\#222\],
+html[data-theme="clean-light"] .hover\:bg-\[\#222\]:hover {
+  background-color: var(--color-theme-surface) !important;
+}
+
+html[data-theme="clean-light"] .bg-\[\#333\] {
+  background-color: var(--color-theme-surface-hover) !important;
+}
+
+html[data-theme="clean-light"] .border-\[\#555\] {
+  border-color: var(--color-theme-border) !important;
+}
+
+/* Win98: map dark greys to Win98 silver */
 html[data-theme="win98"] .bg-\[\#222\],
 html[data-theme="win98"] .hover\:bg-\[\#222\]:hover {
   background-color: #C0C0C0 !important;
-}
-
-html[data-theme="win98"] .border-\[\#555\] {
-  border-color: #808080 !important;
 }
 
 html[data-theme="win98"] .bg-\[\#333\] {
   background-color: #D4D0C8 !important;
 }
 
-/* Terminal: map dark greys to near-black + green borders */
-html[data-theme="terminal"] .bg-\[\#222\],
-html[data-theme="terminal"] .hover\:bg-\[\#222\]:hover {
-  background-color: #111111 !important;
+html[data-theme="win98"] .border-\[\#555\] {
+  border-color: #808080 !important;
 }
 
-html[data-theme="terminal"] .border-\[\#555\] {
-  border-color: rgba(0, 255, 65, 0.3) !important;
+/* Accessible: map dark greys to black */
+html[data-theme="accessible"] .bg-\[\#222\],
+html[data-theme="accessible"] .hover\:bg-\[\#222\]:hover {
+  background-color: #000000 !important;
+  border: 2px solid #FFFFFF;
 }
 
-html[data-theme="terminal"] .bg-\[\#333\] {
-  background-color: #0A0A0A !important;
+html[data-theme="accessible"] .bg-\[\#333\] {
+  background-color: #000000 !important;
+  border: 2px solid #FFFFFF;
 }
 
-/* Print Editorial: map dark greys to light newsprint */
-html[data-theme="print-editorial"] .bg-\[\#222\],
-html[data-theme="print-editorial"] .hover\:bg-\[\#222\]:hover {
-  background-color: #EAEAE6 !important;
+html[data-theme="accessible"] .border-\[\#555\] {
+  border-color: #FFFFFF !important;
 }
 
-html[data-theme="print-editorial"] .border-\[\#555\] {
-  border-color: #999999 !important;
-}
-
-html[data-theme="print-editorial"] .bg-\[\#333\] {
-  background-color: #FFFFFF !important;
-}
-
-/* Print Editorial: invert text-white/80 for light backgrounds */
-html[data-theme="print-editorial"] .text-white\/80 {
+/* Invert text-white/80 for light backgrounds */
+html[data-theme="clean-light"] .text-white\/80 {
   color: rgba(26, 26, 26, 0.8) !important;
+}
+
+html[data-theme="win98"] .text-white\/80 {
+  color: rgba(0, 0, 0, 0.8) !important;
+}
+
+html[data-theme="accessible"] .text-white\/80 {
+  color: #FFFFFF !important;
 }
 
 @keyframes settings-fade-in {

@@ -17,22 +17,22 @@ export default function ConfirmationModal({
       onClick={onCancel}
     >
       <div
-        className="bg-[#222] border-2 border-brutal-yellow p-6 max-w-[360px] w-[calc(100%-32px)] m-0 mx-4 shadow-[6px_6px_0px_var(--color-brutal-yellow)]"
+        className="bg-theme-surface border-2 border-theme-accent p-6 max-w-[360px] w-[calc(100%-32px)] m-0 mx-4 shadow-theme"
         onClick={e => e.stopPropagation()}
       >
-        <p className="text-brutal-white text-base leading-relaxed mb-6">{message}</p>
+        <p className="text-theme-text text-base leading-relaxed mb-6">{message}</p>
         <div className="flex gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 px-4 py-2.5 bg-brutal-black text-white/80 border-2 border-brutal-yellow font-mono text-sm cursor-pointer transition-colors duration-200 hover:bg-[#222] hover:text-brutal-white"
+            className="flex-1 px-4 py-2.5 bg-theme-bg text-theme-text-secondary border-2 border-theme-accent font-theme text-sm cursor-pointer transition-colors duration-200 hover:bg-theme-surface hover:text-theme-text"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="flex-1 px-4 py-2.5 bg-brutal-yellow text-brutal-black border-2 border-brutal-yellow font-bold font-mono text-sm cursor-pointer transition-colors duration-200 hover:bg-brutal-white"
+            className="flex-1 px-4 py-2.5 bg-theme-accent text-theme-bg border-2 border-theme-accent font-bold font-theme text-sm cursor-pointer transition-colors duration-200 hover:bg-theme-text"
           >
             Confirm
           </button>
@@ -42,3 +42,6 @@ export default function ConfirmationModal({
     document.body
   )
 }
+
+
+

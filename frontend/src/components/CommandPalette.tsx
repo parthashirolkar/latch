@@ -258,10 +258,13 @@ function CommandPalette({ initialMode }: CommandPaletteProps) {
   }
 
   return (
-    <div className="w-full h-auto max-h-none bg-brutal-black border-none shadow-none flex flex-col overflow-visible">
+    <div className="w-full h-auto max-h-none bg-theme-bg border-none shadow-none flex flex-col overflow-visible">
       {renderMode()}
     </div>
   )
 }
 
 export default CommandPalette
+
+
+

@@ -6,9 +6,13 @@ import './index.css'
 
 // Apply saved theme immediately to prevent FOUC
 const savedTheme = localStorage.getItem('latch-theme')
-if (savedTheme && savedTheme !== 'brutalist') {
-  document.documentElement.setAttribute('data-theme', savedTheme)
+const themeMap: Record<string, string> = {
+  brutalist: 'dark-focus',
+  'print-editorial': 'clean-light',
+  terminal: 'accessible'
 }
+const activeTheme = themeMap[savedTheme || ''] || savedTheme || 'dark-focus'
+document.documentElement.setAttribute('data-theme', activeTheme)
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -17,3 +21,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </React.StrictMode>,
 )
+
+
